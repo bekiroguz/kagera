@@ -100,5 +100,5 @@ object Build extends Build {
         scalatest   % "test")
     ))
 
-  lazy val root = Project("kagera", file(".")).settings(defaultProjectSettings).aggregate(api, visualization)
+  lazy val root = Project("kagera", file(".")).aggregate(api, visualization).settings(defaultProjectSettings).settings(publish := { })
 }
