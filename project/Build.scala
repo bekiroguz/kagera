@@ -28,16 +28,16 @@ object Build extends Build {
     scalaVersion  := "2.11.7",
     scalacOptions := commonScalacOptions,
     incOptions    := incOptions.value.withNameHashing(true),
-    credentials += Credentials("Nexus Repository Manager", "nexus.europe.intranet", "deployment", "do.deploy"),
-    publishTo <<= version { v: String =>
+    credentials += Credentials("Nexus Repository Manager", "nexus.europe.intranet", "deployment", "do.deploy")
+  )
+
+  publishTo <<= version { v: String =>
       val nexus = "http://nexus.europe.intranet:8085/nexus/"
       if (v.trim.endsWith("SNAPSHOT"))
         Some("snapshots" at nexus + "content/repositories/snapshots")
       else
         Some("releases" at nexus + "content/repositories/releases")
     }
-  )
-
   lazy val defaultProjectSettings = basicSettings ++ formattingSettings ++ Revolver.settings
   
   lazy val common = (crossProject.crossType(CrossType.Pure) in file("common"))
