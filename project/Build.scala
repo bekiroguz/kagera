@@ -22,23 +22,26 @@ object Build extends Build {
     "-Xlog-reflective-calls"
   )
 
+  lazy val publishSettings = Seq(
+    credentials += Credentials("Nexus Repository Manager", "nexus.europe.intranet", "deployment", "do.deploy"),
+    publishTo  <<= version { v: String =>
+      val nexus = "http://nexus.europe.intranet:8085/nexus/content/repositories/"
+      if (v.trim.endsWith("SNAPSHOT"))
+        Some("snapshots" at nexus + "snapshots")
+      else
+        Some("releases" at nexus + "releases")
+    }
+  )
+
   lazy val basicSettings = Seq(
     organization  := "io.kagera",
     version       := "0.1.0-SNAPSHOT",
     scalaVersion  := "2.11.7",
     scalacOptions := commonScalacOptions,
-    incOptions    := incOptions.value.withNameHashing(true),
-    credentials += Credentials("Nexus Repository Manager", "nexus.europe.intranet", "deployment", "do.deploy")
+    incOptions    := incOptions.value.withNameHashing(true)
   )
 
-  publishTo <<= version { v: String =>
-      val nexus = "http://nexus.europe.intranet:8085/nexus/"
-      if (v.trim.endsWith("SNAPSHOT"))
-        Some("snapshots" at nexus + "content/repositories/snapshots")
-      else
-        Some("releases" at nexus + "content/repositories/releases")
-    }
-  lazy val defaultProjectSettings = basicSettings ++ formattingSettings ++ Revolver.settings
+  lazy val defaultProjectSettings = basicSettings ++ publishSettings ++ formattingSettings ++ Revolver.settings
   
   lazy val common = (crossProject.crossType(CrossType.Pure) in file("common"))
     .settings(defaultProjectSettings: _*)
@@ -63,12 +66,11 @@ object Build extends Build {
 
   lazy val visualization = Project("visualization", file("visualization"))
     .dependsOn(api)
-    .settings(defaultProjectSettings: _*)
-    .settings(
+    .settings(defaultProjectSettings ++ Seq(
       name := "kagera-visualization",
       libraryDependencies ++= Seq(
         graph,
-        graphDot))
+        graphDot)))
 
   lazy val frontend = Project("frontend", file("frontend"))
     .dependsOn(commonJs)
@@ -82,7 +84,7 @@ object Build extends Build {
     ))
 
   lazy val akkaImplementation = Project("akka", file("akka"))
-    .dependsOn(commonJvm, api)
+    .dependsOn(api)
     .settings(defaultProjectSettings ++ Seq(
       name      := "kagera-akka",
       mainClass := Some("io.kagera.akka.Main"),
@@ -98,5 +100,5 @@ object Build extends Build {
         scalatest   % "test")
     ))
 
-  lazy val root = Project("kagera", file(".")).aggregate(commonJvm, api, visualization)
+  lazy val root = Project("kagera", file(".")).settings(defaultProjectSettings).aggregate(api, visualization)
 }
