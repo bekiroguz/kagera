@@ -28,6 +28,7 @@ object Build extends Build {
     scalaVersion  := "2.11.7",
     scalacOptions := commonScalacOptions,
     incOptions    := incOptions.value.withNameHashing(true),
+    credentials += Credentials(Path.userHome / ".sbt" / ".credentials"),
     publishTo <<= version { v: String =>
       val nexus = "http://nexus.europe.intranet:8085/nexus/"
       if (v.trim.endsWith("SNAPSHOT"))
