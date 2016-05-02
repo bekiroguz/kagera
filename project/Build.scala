@@ -27,7 +27,14 @@ object Build extends Build {
     version       := "0.1.0-SNAPSHOT",
     scalaVersion  := "2.11.7",
     scalacOptions := commonScalacOptions,
-    incOptions    := incOptions.value.withNameHashing(true)
+    incOptions    := incOptions.value.withNameHashing(true),
+    publishTo <<= version { v: String =>
+      val nexus = "http://nexus.europe.intranet:8085/nexus/"
+      if (v.trim.endsWith("SNAPSHOT"))
+        Some("snapshots" at nexus + "content/repositories/snapshots")
+      else
+        Some("releases" at nexus + "content/repositories/releases")
+    }
   )
 
   lazy val defaultProjectSettings = basicSettings ++ formattingSettings ++ Revolver.settings
