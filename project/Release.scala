@@ -11,7 +11,9 @@ object Release {
         Some("snapshots" at nexus + "snapshots")
       else
         Some("releases" at nexus + "releases")
-    }
+    },
+    isSnapshot := true,
+    publishMavenStyle := true
   )
 
 }
