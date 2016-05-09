@@ -21,7 +21,6 @@ object Build extends Build {
 
   lazy val basicSettings = Seq(
     organization  := "io.kagera",
-    version       := "0.1.0-SNAPSHOT",
     scalaVersion  := "2.11.8",
     scalacOptions := commonScalacOptions,
     incOptions    := incOptions.value.withNameHashing(true)
