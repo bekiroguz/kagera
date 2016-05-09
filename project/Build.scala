@@ -1,13 +1,11 @@
-import sbt._
 import sbt.Keys._
-import sbtassembly.AssemblyKeys
+import sbt._
 import spray.revolver.RevolverPlugin.Revolver
 
 object Build extends Build {
 
   import Dependencies._
   import Formatting._
-  import AssemblyKeys._
   import Release._
 
   val commonScalacOptions = Seq(
@@ -71,22 +69,22 @@ object Build extends Build {
   //      "com.lihaoyi"                     %%% "scalatags"   % "0.5.1")
   //    ))
 
-  lazy val akkaImplementation = Project("akka", file("akka"))
-    .dependsOn(api)
-    .settings(defaultProjectSettings ++ Seq(
-      name      := "kagera-akka",
-      mainClass := Some("io.kagera.akka.Main"),
-      libraryDependencies ++= Seq(
-        akkaActor,
-        akkaPersistence,
-        akkaSlf4j,
-        akkaHttp,
-        ficus,
-        graph,
-        logback,
-        akkaTestkit % "test",
-        scalatest   % "test")
-    ))
+//  lazy val akkaImplementation = Project("akka", file("akka"))
+//    .dependsOn(api)
+//    .settings(defaultProjectSettings ++ Seq(
+//      name      := "kagera-akka",
+//      mainClass := Some("io.kagera.akka.Main"),
+//      libraryDependencies ++= Seq(
+//        akkaActor,
+//        akkaPersistence,
+//        akkaSlf4j,
+//        akkaHttp,
+//        ficus,
+//        graph,
+//        logback,
+//        akkaTestkit % "test",
+//        scalatest   % "test")
+//    ))
 
   lazy val root = Project("kagera", file(".")).aggregate(api, visualization).settings(defaultProjectSettings).settings(publish := { })
 }
