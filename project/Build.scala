@@ -8,6 +8,7 @@ object Build extends Build {
   import Dependencies._
   import Formatting._
   import AssemblyKeys._
+  import Release._
 
   val commonScalacOptions = Seq(
     "-encoding", "utf8",
@@ -18,17 +19,6 @@ object Build extends Build {
     "-unchecked",
     "-deprecation",
     "-Xlog-reflective-calls"
-  )
-
-  lazy val publishSettings = Seq(
-    credentials += Credentials("Nexus Repository Manager", "nexus.europe.intranet", "deployment", "do.deploy"),
-    publishTo  <<= version { v: String =>
-      val nexus = "http://nexus.europe.intranet:8085/nexus/content/repositories/"
-      if (v.trim.endsWith("SNAPSHOT"))
-        Some("snapshots" at nexus + "snapshots")
-      else
-        Some("releases" at nexus + "releases")
-    }
   )
 
   lazy val basicSettings = Seq(
