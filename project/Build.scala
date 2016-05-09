@@ -8,9 +8,12 @@ object Build extends Build {
   import Formatting._
   import Release._
 
+  val scalaV = "2.11.8"
+  val jvmV = "1.7"
+
   val commonScalacOptions = Seq(
     "-encoding", "utf8",
-    "-target:jvm-1.8",
+    s"-target:jvm-$jvmV",
     "-feature",
     "-language:implicitConversions",
     "-language:postfixOps",
@@ -21,7 +24,7 @@ object Build extends Build {
 
   lazy val basicSettings = Seq(
     organization  := "io.kagera",
-    scalaVersion  := "2.11.8",
+    scalaVersion  := scalaV,
     scalacOptions := commonScalacOptions,
     incOptions    := incOptions.value.withNameHashing(true)
   )
