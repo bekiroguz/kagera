@@ -8,6 +8,7 @@ import scalax.collection.edge.WLDiEdge
 case class ReflectedTransition[I: TypeTag, O: TypeTag](
     override val id: Long,
     override val label: String,
+    override val isManaged: Boolean,
     fn: I ⇒ O) extends Transition {
 
   private lazy val universeMirror = ru.runtimeMirror(getClass.getClassLoader)
@@ -21,7 +22,7 @@ case class ReflectedTransition[I: TypeTag, O: TypeTag](
 
   val names = implicitly[TypeTag[Input]].tpe.member(ru.termNames.CONSTRUCTOR).asMethod.paramLists(0).map(_.name.decodedName.toString)
 
-  def createInput(input: Seq[(Place, WLDiEdge[Node], Seq[Any])]): Input = {
+  def createInput(input: Seq[(Place, WLDiEdge[Node], Seq[Any])], data: Option[Any]): Input = {
 
     val constructorInput = input
       .map { case (place, arc, data) ⇒ (names.indexWhere(_ == place.label), data.head) }

@@ -1,5 +1,6 @@
 package io.kagera
 
+import scala.concurrent.{ ExecutionContext, Future }
 import scalaz.@@
 
 package object api {
@@ -31,35 +32,7 @@ package object api {
    * @tparam T The transition type
    * @tparam M The marking type
    */
-  type PTProcess[P, T, M] = PetriNet[P, T] with TokenGame[P, T, M] with TransitionExecutor[P, T, M]
-
-  /**
-   * Type class for marking 'like' semantics.
-   */
-  trait MarkingLike[M, P] {
-
-    /**
-     * Returns an empty instance of this marking type.
-     *
-     * @return The empty marking.
-     */
-    def emptyMarking: M
-
-    /**
-     * Returns the multiplicity of the marking, that is: A map from place to the nr of tokens in that place
-     *
-     * @param marking
-     *
-     * @return The empty marking.
-     */
-    def multiplicity(marking: M): Marking[P]
-
-    def isSubMarking(m: M, other: M): Boolean
-
-    def consume(from: M, other: M): M
-
-    def produce(into: M, other: M): M
-  }
+  trait PetriNetProcess[P, T, M] extends PetriNet[P, T] with TokenGame[P, T, M] with TransitionExecutor[P, T, M]
 
   implicit class MarkingLikeApi[M, P](val m: M)(implicit val markingLike: MarkingLike[M, P]) {
 
@@ -78,24 +51,7 @@ package object api {
 
     this: PetriNet[P, T] ⇒
 
-    def fireTransition(marking: M)(transition: T): M
-  }
-
-  trait TokenGame[P, T, M] {
-
-    this: PetriNet[P, T] ⇒
-
-    def enabledParameters(m: M): Map[T, Iterable[M]] = {
-      // inefficient, fix
-      enabledTransitions(m).view.map(t ⇒ t -> consumableMarkings(m)(t)).toMap
-    }
-
-    def consumableMarkings(m: M)(t: T): Iterable[M]
-
-    // horribly inefficient, fix
-    def isEnabled(marking: M)(t: T): Boolean = enabledTransitions(marking).contains(t)
-
-    def enabledTransitions(marking: M): Set[T]
+    def fireTransition(marking: M)(transition: T, data: Option[Any] = None)(implicit ec: ExecutionContext): Future[M]
   }
 }
 

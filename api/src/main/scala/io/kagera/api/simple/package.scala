@@ -1,6 +1,6 @@
 package io.kagera.api
 
-import scalax.collection.edge.WLDiEdge
+import scala.concurrent.{ ExecutionContext, Future }
 import scalaz.syntax.std.boolean._
 
 package object simple {
@@ -31,44 +31,37 @@ package object simple {
     override def isSubMarking(marking: Marking[P], other: Marking[P]): Boolean =
       !other.exists {
         case (place, count) ⇒ marking.get(place) match {
-          case None                  ⇒ true
-          case Some(n) if n <= count ⇒ true
-          case _                     ⇒ false
+          case None                 ⇒ true
+          case Some(n) if n < count ⇒ true
+          case _                    ⇒ false
         }
       }
+  }
+
+  def findEnabledTransitions[P, T](pn: PetriNet[P, T])(marking: Marking[P]): Set[T] = {
+    /**
+     * Inefficient way of doing this, we don't need to check every transition in the petri net.
+     */
+    pn.transitions.filter(t ⇒ marking.isSubMarking(pn.inMarking(t)))
   }
 
   trait SimpleTokenGame[P, T] extends TokenGame[P, T, Marking[P]] {
     this: PetriNet[P, T] ⇒
 
-    import ScalaGraph._
-
     override def consumableMarkings(m: Marking[P])(t: T): Iterable[Marking[P]] = {
       // for uncolored markings there is only 1 consumable marking per transition
       val in = inMarking(t)
-
       m.isSubMarking(in).option(in)
     }
 
-    lazy val constructors = innerGraph.nodes.collect({
-      case node if node.isNodeB && node.incoming.isEmpty ⇒ node.valueB
-    }: PartialFunction[BiPartiteGraph[P, T, WLDiEdge]#NodeT, T]) // TODO This should not be needed, why does the compiler complain?
-
-    override def enabledTransitions(marking: Marking[P]): Set[T] = {
-      marking.map {
-        case (place, count) ⇒ innerGraph.get(place).outgoing.collect {
-          case edge if (edge.weight <= count) ⇒ edge.target
-        }
-      }.reduceOption(_ ++ _).getOrElse(Set.empty).collect {
-        case node if node.incomingA.subsetOf(marking.keySet) ⇒ node.valueB
-      } ++ constructors
-    }
+    override def enabledTransitions(marking: Marking[P]): Set[T] = findEnabledTransitions[P, T](this)(marking)
   }
 
   trait SimpleExecutor[P, T] extends TransitionExecutor[P, T, Marking[P]] {
 
     this: PetriNet[P, T] with TokenGame[P, T, Marking[P]] ⇒
 
-    override def fireTransition(m: Marking[P])(t: T): Marking[P] = m.consume(inMarking(t)).produce(outMarking(t))
+    override def fireTransition(m: Marking[P])(transition: T, data: Option[Any])(implicit ec: ExecutionContext): Future[Marking[P]] =
+      Future.successful(m.consume(inMarking(transition)).produce(outMarking(transition)))
   }
 }

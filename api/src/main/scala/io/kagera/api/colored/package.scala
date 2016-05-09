@@ -1,19 +1,27 @@
 package io.kagera.api
 
 import io.kagera.api.ScalaGraph._
-import io.kagera.api.simple.{ SimpleExecutor, SimpleTokenGame }
 import io.kagera.api.tags.Label
-import scala.concurrent.Await
-import scalax.collection.Graph
+
+import scala.concurrent.{ ExecutionContext, Future }
 import scalax.collection.edge.WLDiEdge
 import scalaz.{ @@, Tag }
 
 package object colored {
 
+  /**
+   * Type alias for the node type of the scalax.collection.Graph backing the petri net.
+   */
   type Node = Either[Place, Transition]
 
+  /**
+   * Type alias for the edge type of the scalax.collection.Graph backing the petri net.
+   */
   type Arc = WLDiEdge[Node]
 
+  /**
+   * Type alias for a colored marking, each token in place may hold data.
+   */
   type ColoredMarking = Map[Place, Seq[Any]]
 
   implicit object PlaceLabeler extends Labeled[Place] {
@@ -23,10 +31,6 @@ package object colored {
   implicit object TransitionLabeler extends Labeled[Transition] {
     override def apply(t: Transition): @@[String, Label] = Tag[String, Label](t.label)
   }
-
-  def arc(t: Transition, p: Place, weight: Long, fieldName: String): Arc = WLDiEdge[Node, String](Right(t), Left(p))(weight, fieldName)
-
-  def arc(p: Place, t: Transition, weight: Long, fieldName: String): Arc = WLDiEdge[Node, String](Left(p), Right(t))(weight, fieldName)
 
   implicit object ColouredMarkingLike extends MarkingLike[ColoredMarking, Place] {
 
@@ -43,7 +47,7 @@ package object colored {
           marking + (place -> newTokens)
     }
     override def produce(into: ColoredMarking, other: ColoredMarking): ColoredMarking = other.foldLeft(into) {
-      case (marking, (place, tokens)) ⇒ marking + (place -> tokens.++(marking(place)))
+      case (marking, (place, tokens)) ⇒ marking + (place -> tokens.++(marking.getOrElse(place, Seq.empty)))
     }
 
     override def isSubMarking(marking: ColoredMarking, other: ColoredMarking): Boolean = other.forall {
@@ -53,39 +57,52 @@ package object colored {
     }
   }
 
-  trait ColouredExecutor extends TransitionExecutor[Place, Transition, ColoredMarking] {
+  trait ColoredTokenGame extends TokenGame[Place, Transition, ColoredMarking] {
+    this: PetriNet[Place, Transition] ⇒
+
+    override def enabledParameters(m: ColoredMarking): Map[Transition, Iterable[ColoredMarking]] =
+      enabledTransitions(m).view.map(t ⇒ t -> consumableMarkings(m)(t)).toMap
+
+    def consumableMarkings(marking: ColoredMarking)(t: Transition): Iterable[ColoredMarking] = {
+      val firstEnabled = inMarking(t).map {
+        case (place, count) ⇒ place -> marking(place).take(count.toInt)
+      }
+      Seq(firstEnabled)
+    }
+
+    override def enabledTransitions(marking: ColoredMarking): Set[Transition] =
+      simple.findEnabledTransitions(this)(marking.multiplicity)
+  }
+
+  def executeTransition(pn: PetriNet[Place, Transition])(consume: ColoredMarking, t: Transition, data: Option[Any])(implicit ec: ExecutionContext): Future[ColoredMarking] = {
+    val inAdjacent = consume.map {
+      case (place, data) ⇒ (place, pn.innerGraph.connectingEdgeAB(place, t), data)
+    }.toSeq
+
+    val outAdjacent = pn.innerGraph.outgoingA(t).map {
+      case place ⇒ (pn.innerGraph.connectingEdgeBA(t, place), place)
+    }.toSeq
+
+    t.apply(t.createInput(inAdjacent, data)).map(t.createOutput(_, outAdjacent))
+  }
+
+  trait ColoredExecutor extends TransitionExecutor[Place, Transition, ColoredMarking] {
 
     this: PetriNet[Place, Transition] with TokenGame[Place, Transition, ColoredMarking] ⇒
 
-    override def fireTransition(marking: ColoredMarking)(t: Transition): ColoredMarking = {
+    override def fireTransition(marking: ColoredMarking)(t: Transition, data: Option[Any])(implicit ec: ExecutionContext) = {
 
       // pick the tokens
-      enabledParameters(marking)(t).headOption.map { consume ⇒
+      enabledParameters(marking).get(t).flatMap(_.headOption).map { consume ⇒
 
-        import scala.concurrent.duration._
-
-        val input = consume.map {
-          case (place, data) ⇒ (place, innerGraph.connectingEdgeAB(place, t), data)
-        }.toSeq
-
-        val output = innerGraph.outgoingA(t).map {
-          case place ⇒ (innerGraph.connectingEdgeBA(t, place), place)
-        }.toSeq
-
-        val transitionInput = t.createInput(input)
-
-        // TODO this should not block the thread
-        val transitionOutput = Await.result(t.apply(transitionInput), 2 seconds)
-        val produce = t.createOutput(transitionOutput, output)
-
-        marking.consume(consume).produce(produce)
-
+        executeTransition(this)(consume, t, data).map(produce ⇒
+          marking.consume(consume).produce(produce)
+        )
       }.getOrElse {
-        throw new IllegalStateException("Transition not enabled")
+        throw new IllegalStateException(s"Transition $t is not enabled")
       }
     }
   }
 
-  def process(params: Seq[Arc]*): PTProcess[Place, Transition, Marking[Place]] =
-    new ScalaGraphPetriNet(Graph(params.reduce(_ ++ _): _*)) with SimpleTokenGame[Place, Transition] with SimpleExecutor[Place, Transition]
+  trait ColoredPetriNetProcess extends PetriNetProcess[Place, Transition, ColoredMarking] with ColoredTokenGame with ColoredExecutor
 }

@@ -1,8 +1,6 @@
 import sbt._
 import sbt.Keys._
 import sbtassembly.AssemblyKeys
-import org.scalajs.sbtplugin.ScalaJSPlugin
-import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 import spray.revolver.RevolverPlugin.Revolver
 
 object Build extends Build {
@@ -36,21 +34,21 @@ object Build extends Build {
   lazy val basicSettings = Seq(
     organization  := "io.kagera",
     version       := "0.1.0-SNAPSHOT",
-    scalaVersion  := "2.11.7",
+    scalaVersion  := "2.11.8",
     scalacOptions := commonScalacOptions,
     incOptions    := incOptions.value.withNameHashing(true)
   )
 
   lazy val defaultProjectSettings = basicSettings ++ publishSettings ++ formattingSettings ++ Revolver.settings
-  
-  lazy val common = (crossProject.crossType(CrossType.Pure) in file("common"))
-    .settings(defaultProjectSettings: _*)
-    .settings(name := "kagera-common")
-    .jvmSettings(libraryDependencies += scalazCore)
-    .jsSettings(libraryDependencies += "com.github.japgolly.fork.scalaz" %%% "scalaz-core" % "7.1.3")
 
-  lazy val commonJs = common.js
-  lazy val commonJvm = common.jvm
+  //  lazy val common = (crossProject.crossType(CrossType.Pure) in file("common"))
+  //    .settings(defaultProjectSettings: _*)
+  //    .settings(name := "kagera-common")
+  //    .jvmSettings(libraryDependencies += scalazCore)
+  //    .jsSettings(libraryDependencies += "com.github.japgolly.fork.scalaz" %%% "scalaz-core" % "7.1.3")
+
+  //  lazy val commonJs = common.js
+  //  lazy val commonJvm = common.jvm
 
   lazy val api = Project("api", file("api"))
     .settings(defaultProjectSettings: _*)
@@ -72,16 +70,16 @@ object Build extends Build {
         graph,
         graphDot)))
 
-  lazy val frontend = Project("frontend", file("frontend"))
-    .dependsOn(commonJs)
-    .enablePlugins(ScalaJSPlugin)
-    .settings(defaultProjectSettings ++ Seq(
-      persistLauncher in Compile := true,
-      libraryDependencies ++= Seq(
-      "org.scala-js"                    %%% "scalajs-dom" % "0.8.1",
-      "com.github.japgolly.fork.scalaz" %%% "scalaz-core" % "7.1.3",
-      "com.lihaoyi"                     %%% "scalatags"   % "0.5.1")
-    ))
+  //  lazy val frontend = Project("frontend", file("frontend"))
+  //    .dependsOn(commonJs)
+  //    .enablePlugins(ScalaJSPlugin)
+  //    .settings(defaultProjectSettings ++ Seq(
+  //      persistLauncher in Compile := true,
+  //      libraryDependencies ++= Seq(
+  //      "org.scala-js"                    %%% "scalajs-dom" % "0.8.1",
+  //      "com.github.japgolly.fork.scalaz" %%% "scalaz-core" % "7.1.3",
+  //      "com.lihaoyi"                     %%% "scalatags"   % "0.5.1")
+  //    ))
 
   lazy val akkaImplementation = Project("akka", file("akka"))
     .dependsOn(api)
