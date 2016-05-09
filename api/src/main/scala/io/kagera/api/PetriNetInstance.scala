@@ -5,10 +5,10 @@ import scala.concurrent.Future
 trait PetriNetInstance[P, T, M] {
 
   /**
-    * The topology of the instance.
-    *
-    * @return
-    */
+   * The topology of the instance.
+   *
+   * @return
+   */
   def topology: PetriNet[P, T]
 
   /**
