@@ -47,6 +47,8 @@ package object dsl {
 
     new PetriNetInstance[Place, Transition, ColoredMarking] {
 
+      override def topology = process
+
       var currentMarking: ColoredMarking = initialMarking
 
       override def marking: ColoredMarking = currentMarking
