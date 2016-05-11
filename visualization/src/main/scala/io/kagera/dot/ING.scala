@@ -8,7 +8,7 @@ import scalax.collection.io.dot.implicits._
 object ING {
 
   val placeDotAttrList: List[DotAttr] = List(
-    DotAttr("color", "darkorange"),
+    DotAttr("color", "\"#FF6200\""),
     DotAttr("style", "filled"),
     DotAttr("fillcolor", "darkorange"),
     DotAttr("fontcolor", "white")
@@ -17,7 +17,7 @@ object ING {
   val transitionDotAttrList: List[DotAttr] = List(
     DotAttr("shape", "rect"),
     DotAttr("margin", 0.5D),
-    DotAttr("color", "blue4"),
+    DotAttr("color", "\"#525199\""),
     DotAttr("style", "rounded, filled"),
     DotAttr("fontcolor", "white"),
     DotAttr("penwidth", 2)
