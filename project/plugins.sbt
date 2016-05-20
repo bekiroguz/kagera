@@ -13,3 +13,5 @@ addSbtPlugin("org.scala-js" % "sbt-scalajs" % "0.6.8")
 addSbtPlugin("io.spray" % "sbt-revolver" % "0.7.1")
 
 addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.1")
+
+addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.8.2")

@@ -24,6 +24,28 @@ package object colored {
    */
   type ColoredMarking = Map[Place, Seq[Any]]
 
+  /**
+   * Very inefficient multi set operations on Seq,
+   *  TODO perhaps use https://github.com/nicolasstucki/multisets ?
+   *  There are some problems with the library though:
+   *  https://github.com/nicolasstucki/multisets/issues
+   */
+  implicit class MultiSetSeqOperations[T](seq: Seq[T]) {
+    def multiSetRemove(other: Seq[T]) = {
+      other.foldLeft(seq) {
+        case (result, element) ⇒
+          result.indexOf(element) match {
+            case -1 ⇒ result
+            case n ⇒ result.splitAt(n) match {
+              case (first, second) ⇒ first ++ second.tail
+            }
+          }
+      }
+    }
+
+    def multiSetAdd(other: Seq[T]) = seq ++ other
+  }
+
   implicit object PlaceLabeler extends Labeled[Place] {
     override def apply(p: Place): @@[String, Label] = Tag[String, Label](p.label)
   }
@@ -32,28 +54,41 @@ package object colored {
     override def apply(t: Transition): @@[String, Label] = Tag[String, Label](t.label)
   }
 
-  implicit object ColouredMarkingLike extends MarkingLike[ColoredMarking, Place] {
+  implicit object ColoredMarkingLike extends MarkingLike[ColoredMarking, Place] {
 
     override def emptyMarking: ColoredMarking = Map.empty
 
-    override def multiplicity(marking: ColoredMarking): Marking[Place] = marking.map { case (p, tokens) ⇒ (p, tokens.size.toLong) }.toMap
+    override def multiplicity(marking: ColoredMarking): Marking[Place] = marking.map { case (p, tokens) ⇒ (p, tokens.size.toLong) }
 
     override def consume(from: ColoredMarking, other: ColoredMarking): ColoredMarking = other.foldLeft(from) {
-      case (marking, (place, tokens)) ⇒
-        val newTokens = marking(place).filterNot(tokens.contains)
-        if (newTokens.isEmpty)
-          marking - place
-        else
-          marking + (place -> newTokens)
+      case (marking, (place, tokens)) ⇒ removeTokens(marking, place, tokens)
     }
+
+    override def remove(from: ColoredMarking, other: ColoredMarking): ColoredMarking = other.foldLeft(from) {
+      case (marking, (place, tokens)) ⇒
+
+        // Check if tokens exist in from place in other marking.
+        val currentTokens = marking.get(place)
+
+        // If tokens are available then remove them out of the list
+        currentTokens match {
+          case Some(ts) ⇒ removeTokens(marking, place, tokens)
+          case None     ⇒ marking - place
+        }
+    }
+
+    private def removeTokens(marking: ColoredMarking, place: Place, tokensToRemove: Seq[Any]): ColoredMarking = {
+      val newTokens = marking(place).multiSetRemove(tokensToRemove)
+      if (newTokens.isEmpty) marking - place
+      else marking + (place -> newTokens)
+    }
+
     override def produce(into: ColoredMarking, other: ColoredMarking): ColoredMarking = other.foldLeft(into) {
       case (marking, (place, tokens)) ⇒ marking + (place -> tokens.++(marking.getOrElse(place, Seq.empty)))
     }
 
     override def isSubMarking(marking: ColoredMarking, other: ColoredMarking): Boolean = other.forall {
-      case (place, tokens) ⇒ marking.get(place)
-        .map(markingTokens ⇒ tokens.forall(markingTokens.contains))
-        .getOrElse(false)
+      case (place, tokens) ⇒ marking.get(place).exists(markingTokens ⇒ tokens.forall(markingTokens.contains))
     }
   }
 
@@ -74,16 +109,25 @@ package object colored {
       simple.findEnabledTransitions(this)(marking.multiplicity)
   }
 
-  def executeTransition(pn: PetriNet[Place, Transition])(consume: ColoredMarking, t: Transition, data: Option[Any])(implicit ec: ExecutionContext): Future[ColoredMarking] = {
-    val inAdjacent = consume.map {
-      case (place, data) ⇒ (place, pn.innerGraph.connectingEdgeAB(place, t), data)
-    }.toSeq
+  def executeTransition(pn: PetriNet[Place, Transition])(consume: ColoredMarking, t: Transition, extraData: Option[Any])(implicit ec: ExecutionContext): Future[ColoredMarking] = {
 
-    val outAdjacent = pn.outAdjacentPlaces(t).map {
-      case place ⇒ (pn.innerGraph.connectingEdgeBA(t, place), place)
-    }.toSeq
+    try {
 
-    t.apply(t.createInput(inAdjacent, data)).map(t.createOutput(_, outAdjacent))
+      val inAdjacent = consume.map {
+        case (place, data) ⇒ (place, pn.innerGraph.connectingEdgeAB(place, t), data)
+      }.toSeq
+
+      val outAdjacent = pn.outAdjacentPlaces(t).map {
+        case place ⇒ (pn.innerGraph.connectingEdgeBA(t, place), place)
+      }.toSeq
+
+      val input = t.createInput(inAdjacent, extraData)
+
+      t.apply(input).map(t.createOutput(_, outAdjacent))
+
+    } catch {
+      case e: Exception ⇒ Future.failed(e)
+    }
   }
 
   trait ColoredExecutor extends TransitionExecutor[Place, Transition, ColoredMarking] {
@@ -95,9 +139,10 @@ package object colored {
       // pick the tokens
       enabledParameters(marking).get(t).flatMap(_.headOption).map { consume ⇒
 
-        executeTransition(this)(consume, t, data).map(produce ⇒
-          marking.consume(consume).produce(produce)
-        )
+        executeTransition(this)(consume, t, data).recoverWith {
+          case e: Exception ⇒ Future.failed(new RuntimeException(s"Transition '$t' failed to fire!", e))
+        }.map(produce ⇒ marking.consume(consume).produce(produce))
+
       }.getOrElse { throw new IllegalStateException(s"Transition $t is not enabled") }
     }
   }
