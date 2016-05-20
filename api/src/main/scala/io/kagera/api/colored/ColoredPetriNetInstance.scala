@@ -23,9 +23,7 @@ class ColoredPetriNetInstance(process: PetriNetProcess[Place, Transition, Colore
 
   def applyChange(t: Transition)(newMarking: ColoredMarking): ColoredMarking = {
     val newTokens = newMarking remove currentMarking
-    println(s"$t fired, produced: $newTokens")
     accumulated = accumulated produce newTokens
-    println(s"accumulated marking: $accumulated")
     currentMarking = newMarking
     newMarking
   }
