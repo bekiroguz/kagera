@@ -1,6 +1,6 @@
 package io.kagera.api.colored
 
-import io.kagera.api.{ PetriNetProcess, PetriNetInstance }
+import io.kagera.api._
 
 import scala.concurrent.Future
 

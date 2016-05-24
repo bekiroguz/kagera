@@ -22,12 +22,12 @@ class AutoStepperSpec extends WordSpec {
 
       val initialMarking: ColoredMarking = Map(p1 -> Seq(null))
 
-      val petriNet = process(Seq(
+      val petriNet = process(
         p1 ~> t1,
         t1 ~> p2,
         p2 ~> t2,
         t2 ~> p3
-      ))
+      )
 
       val instance = processInstance(petriNet, initialMarking)
 
