@@ -36,7 +36,7 @@ package object dsl {
         case (arc, place) ⇒ place -> List.fill(arc.weight.toInt)(output)
       }.toMap
 
-      override def createInput(inAdjacent: Seq[(Place, WLDiEdge[Node], Seq[Any])], data: Option[Any]): Input = null
+      override def createInput(inAdjacent: Seq[(Place, WLDiEdge[Node], Seq[Any])], data: Option[Any], context: TransitionContext): Input = null
 
       override def apply(input: Input)(implicit executor: scala.concurrent.ExecutionContext): Future[Output] = Future.successful(constant)
     }
@@ -47,6 +47,5 @@ package object dsl {
     new ScalaGraphPetriNet(Graph(params: _*)) with ColoredPetriNetProcess
 
   def processInstance(process: PetriNetProcess[Place, Transition, ColoredMarking],
-    initialMarking: ColoredMarking = Map.empty): ColoredPetriNetInstance =
-    new ColoredPetriNetInstance(process, initialMarking)
+    initialMarking: ColoredMarking = Map.empty, id: java.util.UUID): ColoredPetriNetInstance = new ColoredPetriNetInstance(process, initialMarking, id)
 }

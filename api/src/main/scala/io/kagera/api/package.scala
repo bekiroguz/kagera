@@ -58,7 +58,7 @@ package object api {
 
     this: PetriNet[P, T] ⇒
 
-    def fireTransition(marking: M)(transition: T, data: Option[Any] = None)(implicit ec: ExecutionContext): Future[M]
+    def fireTransition(marking: M, id: java.util.UUID)(transition: T, data: Option[Any] = None)(implicit ec: ExecutionContext): Future[M]
   }
 
   type BiPartiteGraph[P, T, E[X] <: EdgeLikeIn[X]] = Graph[Either[P, T], E]

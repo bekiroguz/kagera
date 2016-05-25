@@ -27,10 +27,6 @@ class ExecutorSpec extends WordSpec {
       )
 
       val m: ColoredMarking = Map(p1 -> Seq(null))
-
-      println(m.multiplicity)
-      println(simple.findEnabledTransitions(p)(m.multiplicity))
-      println(p.enabledParameters(m))
     }
   }
 

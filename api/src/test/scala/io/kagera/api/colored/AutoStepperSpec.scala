@@ -29,7 +29,7 @@ class AutoStepperSpec extends WordSpec {
         t2 ~> p3
       )
 
-      val instance = processInstance(petriNet, initialMarking)
+      val instance = processInstance(petriNet, initialMarking, java.util.UUID.randomUUID())
 
       instance.marking shouldBe initialMarking
 
