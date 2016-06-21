@@ -25,7 +25,7 @@ trait ColoredExecutor extends TransitionExecutor[Place, Transition, ColoredMarki
       t.apply(input).map(t.createOutput(_, outAdjacent))
 
     } catch {
-      case e: Exception ⇒ Future.failed(e)
+      case e: Throwable ⇒ Future.failed(e)
     }
   }
 
@@ -35,7 +35,7 @@ trait ColoredExecutor extends TransitionExecutor[Place, Transition, ColoredMarki
     enabledParameters(marking).get(t).flatMap(_.headOption).map { consume ⇒
 
       executeTransition(this)(consume, t, data, id).recoverWith {
-        case e: Exception ⇒ Future.failed(new RuntimeException(s"Transition '$t' failed to fire!", e))
+        case e: Exception ⇒ Future.failed(e)
       }.map(produce ⇒ marking.consume(consume).produce(produce))
 
     }.getOrElse { throw new IllegalStateException(s"Transition $t is not enabled") }
