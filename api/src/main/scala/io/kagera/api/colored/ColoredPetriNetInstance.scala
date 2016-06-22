@@ -30,7 +30,7 @@ class ColoredPetriNetInstance(process: PetriNetProcess[Place, Transition, Colore
 
   // this is very dangerous hack, could go into an infinite recursive loop
   def stepManagedRecursive(marking: ColoredMarking): Future[ColoredMarking] = {
-    process.enabledTransitions(marking).find(_.isManaged).map { t ⇒
+    process.enabledTransitions(marking).find(_.firesAutomatically).map { t ⇒
       process.fireTransition(marking, id)(t, None).map(applyChange(t)).flatMap(stepManagedRecursive)
     }.getOrElse(Future.successful(marking))
   }

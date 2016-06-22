@@ -34,10 +34,10 @@ trait Transition {
   val label: String
 
   /**
-   * Flag indicating whether this transition is managed or manually triggered
+   * Flag indicating whether this transition is managed (i.e. fires automatically) or manually triggered
    * from outside.
    */
-  val isManaged: Boolean
+  val firesAutomatically: Boolean
 
   /**
    * The maximum duration this transition may spend doing computation / io.
