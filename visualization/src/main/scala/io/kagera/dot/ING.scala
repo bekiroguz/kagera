@@ -26,11 +26,11 @@ object ING {
   def ingMarkedTheme[P, T, M](marking: M)(implicit markingLike: MarkingLike[M, P]): GraphTheme[Either[P, T], WLDiEdge] =
     new GraphTheme[Either[P, T], WLDiEdge] {
       override def nodeLabelFn = PetriNet.labelFn
-      override def nodeDotAttrFn = node ⇒ node match {
+      override def nodeDotAttrFn = {
         case Left(nodeA) ⇒
           markingLike.multiplicity(marking).get(nodeA) match {
             case Some(n) if n > 0 ⇒ DotAttr("shape", "doublecircle") :: placeDotAttrList
-            case _                ⇒ DotAttr("shape", "circle") :: placeDotAttrList
+            case _ ⇒ DotAttr("shape", "circle") :: placeDotAttrList
           }
 
         case Right(nodeB) ⇒ transitionDotAttrList
@@ -40,13 +40,12 @@ object ING {
   def ingTheme[P, T] = new GraphTheme[Either[P, T], WLDiEdge] {
 
     override def nodeLabelFn = PetriNet.labelFn
-    override def nodeDotAttrFn = node ⇒ node match {
-      case Left(nodeA)  ⇒ DotAttr("shape", "circle") :: placeDotAttrList
+    override def nodeDotAttrFn = {
+      case Left(nodeA) ⇒ DotAttr("shape", "circle") :: placeDotAttrList
       case Right(nodeB) ⇒ transitionDotAttrList
     }
     override val attrStmts = List(
-      DotAttrStmt(Elem.node, List(DotAttr("fontname", "ING Me"), DotAttr("fontsize", 22))),
-      DotAttrStmt(Elem.graph, List(DotAttr("rankdir", "LR")))
+      DotAttrStmt(Elem.node, List(DotAttr("fontname", "ING Me"), DotAttr("fontsize", 22)))
     )
 
     override val rootAttrs = List(
