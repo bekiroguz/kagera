@@ -1,13 +1,13 @@
 package io.kagera.akka
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ ActorRef, ActorSystem }
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
-import io.kagera.akka.common.{ActorSystemProvider, DefaultSettingsProvider}
+import io.kagera.akka.common.{ ActorSystemProvider, DefaultSettingsProvider }
 import io.kagera.akka.http.Routes
 
 import scala.concurrent.ExecutionContextExecutor
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 trait ConfiguredActorSystem extends ActorSystemProvider {
 

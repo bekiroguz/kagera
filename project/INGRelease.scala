@@ -1,7 +1,7 @@
 import sbt._
 import sbt.Keys._
 
-object Release {
+object INGRelease {
 
   lazy val publishSettings = Seq(
     credentials += Credentials("Nexus Repository Manager", "nexus.europe.intranet", "deployment", "do.deploy"),

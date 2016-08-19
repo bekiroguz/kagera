@@ -1,12 +1,14 @@
 package io.kagera.api.colored
 
+import io.kagera.api.multiset._
+
 import scala.concurrent.duration.Duration
 
-abstract class AbstractTransition[I, O](override val id: Long,
+abstract class AbstractTransition[I, O, S](override val id: Long,
   override val label: String,
   override val isManaged: Boolean,
   override val maximumOperationTime: Duration = Duration.Undefined)
-    extends Transition {
+    extends Transition[I, O, S] {
 
   override def toString = label
 
