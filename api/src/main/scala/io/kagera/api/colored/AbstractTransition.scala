@@ -1,7 +1,5 @@
 package io.kagera.api.colored
 
-import io.kagera.api.multiset._
-
 import scala.concurrent.duration.Duration
 
 abstract class AbstractTransition[I, O, S](override val id: Long,
