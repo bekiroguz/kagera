@@ -1,6 +1,7 @@
 import sbt.Keys._
 import sbt._
 import spray.revolver.RevolverPlugin.Revolver
+import com.trueaccord.scalapb.{ScalaPbPlugin => PB}
 
 object Build extends Build {
 
@@ -28,7 +29,32 @@ object Build extends Build {
     incOptions    := incOptions.value.withNameHashing(true)
   )
 
-  lazy val defaultProjectSettings = basicSettings ++ formattingSettings ++ Revolver.settings ++ INGRelease.publishSettings
+  lazy val scalaPBSettings = PB.protobufSettings ++ Seq(
+    PB.runProtoc in PB.protobufConfig := (args =>
+      com.github.os72.protocjar.Protoc.runProtoc("-v261" +: args.toArray))
+  )
+
+  lazy val defaultProjectSettings = basicSettings ++ formattingSettings ++ Revolver.settings ++ scalaPBSettings ++ INGRelease.publishSettings
+
+  //  lazy val common = (crossProject.crossType(CrossType.Pure) in file("common"))
+  //    .settings(defaultProjectSettings: _*)
+  //    .settings(name := "kagera-common")
+  //    .jvmSettings(libraryDependencies += scalazCore)
+  //    .jsSettings(libraryDependencies += "com.github.japgolly.fork.scalaz" %%% "scalaz-core" % "7.1.3")
+
+  //  lazy val commonJs = common.js
+  //  lazy val commonJvm = common.jvm
+
+  //  lazy val frontend = Project("frontend", file("frontend"))
+  //    .dependsOn(commonJs)
+  //    .enablePlugins(ScalaJSPlugin)
+  //    .settings(defaultProjectSettings ++ Seq(
+  //      persistLauncher in Compile := true,
+  //      libraryDependencies ++= Seq(
+  //      "org.scala-js"                    %%% "scalajs-dom" % "0.8.1",
+  //      "com.github.japgolly.fork.scalaz" %%% "scalaz-core" % "7.1.3",
+  //      "com.lihaoyi"                     %%% "scalatags"   % "0.5.1")
+  //    ))
 
   lazy val api = Project("api", file("api"))
     .settings(defaultProjectSettings: _*)
@@ -57,7 +83,6 @@ object Build extends Build {
         akkaActor,
         akkaPersistence,
         akkaSlf4j,
-//        akkaHttp,
         graph,
         akkaTestkit % "test",
         scalatest   % "test")

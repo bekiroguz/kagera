@@ -7,7 +7,6 @@ trait PTEdge[T] {
 
   /**
    * The weight of the edge.
-   *
    */
   val weight: Long
 

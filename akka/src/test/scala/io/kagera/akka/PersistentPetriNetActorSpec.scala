@@ -5,6 +5,7 @@ import java.util.UUID
 import akka.actor.{ ActorSystem, PoisonPill, Props, Terminated }
 import akka.testkit.{ ImplicitSender, TestKit }
 import com.typesafe.config.ConfigFactory
+import io.kagera.akka.PersistentPetriNetActorSpec._
 import io.kagera.akka.actor.PersistentPetriNetActor
 import io.kagera.akka.actor.PersistentPetriNetActor.{ FireTransition, GetState, State, TransitionFailed, TransitionFiredSuccessfully }
 import io.kagera.api.colored._
@@ -12,6 +13,11 @@ import io.kagera.api.colored.dsl._
 import org.scalatest.WordSpecLike
 
 object PersistentPetriNetActorSpec {
+
+  sealed trait Event
+  case class Added(n: Int) extends Event
+  case class Removed(n: Int) extends Event
+
   val config = ConfigFactory.parseString(
     """
       |akka {
@@ -20,9 +26,17 @@ object PersistentPetriNetActorSpec {
       |  persistence.journal.plugin = "akka.persistence.journal.inmem"
       |  persistence.snapshot-store.plugin = "akka.persistence.snapshot-store.local"
       |  actor.provider = "akka.actor.LocalActorRefProvider"
-      |}
       |
-      |cram.list-authorized-parties.endpoint-uri = "direct:mdmEndpoint"
+      |   persistence {
+      |    serializers = {
+      |      akka-unit-serializer = "io.kagera.akka.serializer.UnitSerializer"
+      |    }
+      |
+      |    bindings = {
+      |      scala.unit = unit-serializer
+      |    }
+      |  }
+      |}
       |
       |logging.root.level = WARN
     """.stripMargin)
@@ -30,10 +44,6 @@ object PersistentPetriNetActorSpec {
 
 class PersistentPetriNetActorSpec extends TestKit(ActorSystem("test", PersistentPetriNetActorSpec.config))
     with WordSpecLike with ImplicitSender {
-
-  trait Event
-  case class Added(n: Int) extends Event
-  case class Removed(n: Int) extends Event
 
   val eventSourcing: Set[Int] ⇒ Event ⇒ Set[Int] = set ⇒ {
     case Added(c)   ⇒ set + c
@@ -48,10 +58,6 @@ class PersistentPetriNetActorSpec extends TestKit(ActorSystem("test", Persistent
 
   "A persistent petri net actor" should {
 
-    "Respond with a TransitionFiredSuccessfully message if a transition fired successfully" in {
-
-    }
-
     "Respond with a TransitionFailed message if a transition failed to fire" in {
 
       val t1 = stateFunction(eventSourcing)(set ⇒ throw new RuntimeException("something went wrong"))
@@ -64,7 +70,7 @@ class PersistentPetriNetActorSpec extends TestKit(ActorSystem("test", Persistent
       val id = UUID.randomUUID()
       val initialMarking = ColoredMarking(p1 -> 1)
 
-      val actor = system.actorOf(Props(new PersistentPetriNetActor[Set[Int]](id, petriNet, initialMarking, Set.empty)))
+      val actor = system.actorOf(Props(new PersistentPetriNetActor[Set[Int]](petriNet, initialMarking, Set.empty)))
 
       actor ! FireTransition(t1, ())
 
@@ -75,7 +81,6 @@ class PersistentPetriNetActorSpec extends TestKit(ActorSystem("test", Persistent
 
       val t1 = stateFunction(eventSourcing)(set ⇒ Added(1))
       val t2 = stateFunction(eventSourcing, isManaged = true)(set ⇒ Added(2))
-      val t3 = stateFunction(eventSourcing)(set ⇒ throw new RuntimeException("something went wrong"))
 
       val petriNet = process[Set[Int]](
         p1 ~> t1,
@@ -85,10 +90,11 @@ class PersistentPetriNetActorSpec extends TestKit(ActorSystem("test", Persistent
       )
 
       // creates a petri net actor with initial marking: p1 -> 1
-      val id = UUID.randomUUID()
       val initialMarking = ColoredMarking(p1 -> 1)
 
-      val actor = system.actorOf(Props(new PersistentPetriNetActor[Set[Int]](id, petriNet, initialMarking, Set.empty)))
+      val actorName = java.util.UUID.randomUUID().toString
+
+      val actor = system.actorOf(Props(new PersistentPetriNetActor[Set[Int]](petriNet, initialMarking, Set.empty)), actorName)
 
       // assert that the actor is in the initial state
       actor ! GetState
@@ -110,7 +116,7 @@ class PersistentPetriNetActorSpec extends TestKit(ActorSystem("test", Persistent
       expectMsgClass(classOf[Terminated])
 
       // create a new actor with the same persistent identifier
-      val newActor = system.actorOf(Props(new PersistentPetriNetActor[Set[Int]](id, petriNet, initialMarking, Set.empty)))
+      val newActor = system.actorOf(Props(new PersistentPetriNetActor[Set[Int]](petriNet, initialMarking, Set.empty)), actorName)
 
       newActor ! GetState
 
