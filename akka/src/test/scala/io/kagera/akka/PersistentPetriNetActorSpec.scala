@@ -72,7 +72,7 @@ class PersistentPetriNetActorSpec extends TestKit(ActorSystem("test", Persistent
 
       actor ! FireTransition(t1, ())
 
-      expectMsgClass(classOf[TransitionFailed[_]])
+      expectMsgClass(classOf[TransitionFailed])
     }
 
     "Be able to restore it's state after termination" in {
