@@ -1,5 +1,5 @@
-import sbt.Keys._
 import sbt._
+import sbt.Keys._
 import spray.revolver.RevolverPlugin.Revolver
 import com.trueaccord.scalapb.{ScalaPbPlugin => PB}
 
@@ -8,12 +8,9 @@ object Build extends Build {
   import Dependencies._
   import Formatting._
 
-  val scalaV = "2.11.8"
-  val jvmV = "1.7"
-
   val commonScalacOptions = Seq(
     "-encoding", "utf8",
-    s"-target:jvm-$jvmV",
+    "-target:jvm-1.8",
     "-feature",
     "-language:implicitConversions",
     "-language:postfixOps",
@@ -24,10 +21,11 @@ object Build extends Build {
 
   lazy val basicSettings = Seq(
     organization  := "io.kagera",
-    scalaVersion  := scalaV,
+    scalaVersion  := "2.11.8",
     scalacOptions := commonScalacOptions,
     incOptions    := incOptions.value.withNameHashing(true)
   )
+
 
   lazy val scalaPBSettings = PB.protobufSettings ++ Seq(
     PB.runProtoc in PB.protobufConfig := (args =>
@@ -36,9 +34,9 @@ object Build extends Build {
 
   lazy val defaultProjectSettings = basicSettings ++ formattingSettings ++ Revolver.settings ++ scalaPBSettings ++ INGRelease.publishSettings
 
-  //  lazy val common = (crossProject.crossType(CrossType.Pure) in file("common"))
+  //  lazy val draw = (crossProject.crossType(CrossType.Pure) in file("common"))
   //    .settings(defaultProjectSettings: _*)
-  //    .settings(name := "kagera-common")
+  //    .settings(name := "kagera-draw")
   //    .jvmSettings(libraryDependencies += scalazCore)
   //    .jsSettings(libraryDependencies += "com.github.japgolly.fork.scalaz" %%% "scalaz-core" % "7.1.3")
 
@@ -63,23 +61,23 @@ object Build extends Build {
       libraryDependencies ++= Seq(
         graph,
         shapeless,
-        scalaReflect,
         scalatest % "test"))
 
   lazy val visualization = Project("visualization", file("visualization"))
     .dependsOn(api)
-    .settings(defaultProjectSettings ++ Seq(
+    .settings(defaultProjectSettings: _*)
+    .settings(
       name := "kagera-visualization",
       libraryDependencies ++= Seq(
         graph,
-        graphDot)))
+        graphDot))
 
-  lazy val akkaImplementation = Project("akka", file("akka"))
+  lazy val akka = Project("akka", file("akka"))
     .dependsOn(api)
     .settings(defaultProjectSettings ++ Seq(
       name      := "kagera-akka",
-      mainClass := Some("io.kagera.akka.Main"),
       libraryDependencies ++= Seq(
+        scalaReflect,
         akkaActor,
         akkaPersistence,
         akkaSlf4j,
@@ -88,5 +86,23 @@ object Build extends Build {
         scalatest   % "test")
     ))
 
-  lazy val root = Project("kagera", file(".")).aggregate(api, akkaImplementation, visualization).settings(defaultProjectSettings).settings(publish := { })
+  lazy val analyse = Project("analyse", file("analyse"))
+    .dependsOn(akka)
+    .settings(defaultProjectSettings ++ Seq(
+      resolvers            += "krasserm at bintray" at "http://dl.bintray.com/krasserm/maven",
+      name                 := "kagera-analyse",
+      libraryDependencies ++= Seq(akkaAnalyticsCassandra, akkaHttp)
+    ))
+
+  lazy val demo = Project("demo", file("demo"))
+    .dependsOn(api, visualization, akka, analyse)
+    .settings(defaultProjectSettings ++ Seq(
+      libraryDependencies ++= Seq(akkaHttp, akkaPersistenceQuery, akkaPersistenceCassandra),
+      name      := "kagera-demo-app",
+      mainClass := Some("io.kagera.demo.Main")
+    ))
+
+
+  lazy val root = Project("kagera", file(".")).aggregate(api, akka, visualization)
+    .settings(defaultProjectSettings).settings(publish := { })
 }
