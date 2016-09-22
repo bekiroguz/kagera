@@ -10,7 +10,7 @@ object Build extends Build {
 
   val commonScalacOptions = Seq(
     "-encoding", "utf8",
-    "-target:jvm-1.7",
+    "-target:jvm-1.8",
     "-feature",
     "-language:implicitConversions",
     "-language:postfixOps",
@@ -33,26 +33,6 @@ object Build extends Build {
   )
 
   lazy val defaultProjectSettings = basicSettings ++ formattingSettings ++ Revolver.settings ++ scalaPBSettings ++ INGRelease.publishSettings
-
-  //  lazy val draw = (crossProject.crossType(CrossType.Pure) in file("common"))
-  //    .settings(defaultProjectSettings: _*)
-  //    .settings(name := "kagera-draw")
-  //    .jvmSettings(libraryDependencies += scalazCore)
-  //    .jsSettings(libraryDependencies += "com.github.japgolly.fork.scalaz" %%% "scalaz-core" % "7.1.3")
-
-  //  lazy val commonJs = common.js
-  //  lazy val commonJvm = common.jvm
-
-  //  lazy val frontend = Project("frontend", file("frontend"))
-  //    .dependsOn(commonJs)
-  //    .enablePlugins(ScalaJSPlugin)
-  //    .settings(defaultProjectSettings ++ Seq(
-  //      persistLauncher in Compile := true,
-  //      libraryDependencies ++= Seq(
-  //      "org.scala-js"                    %%% "scalajs-dom" % "0.8.1",
-  //      "com.github.japgolly.fork.scalaz" %%% "scalaz-core" % "7.1.3",
-  //      "com.lihaoyi"                     %%% "scalatags"   % "0.5.1")
-  //    ))
 
   lazy val api = Project("api", file("api"))
     .settings(defaultProjectSettings: _*)
