@@ -1,12 +1,15 @@
 package io.kagera.demo.http
 
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse, MediaTypes}
+import akka.http.scaladsl.marshalling
 import akka.http.scaladsl.server.Directives
 import akka.pattern.ask
-import akka.util.Timeout
+import akka.util.{ByteString, Timeout}
+import demo.http.StaticPages
 import io.kagera.akka.actor.PetriNetProcess
 import io.kagera.akka.actor.PetriNetProcess._
-import io.kagera.api.colored.{ ExecutablePetriNet, Generators, Marking, Place, Transition }
-import io.kagera.demo.{ ConfiguredActorSystem, TestProcess }
+import io.kagera.api.colored.{ExecutablePetriNet, Generators, Marking, Place, Transition}
+import io.kagera.demo.{ConfiguredActorSystem, TestProcess}
 import io.kagera.dot.GraphDot
 
 trait Routes extends Directives with TestProcess {
@@ -23,15 +26,23 @@ trait Routes extends Directives with TestProcess {
 
   import io.kagera.dot.PetriNetDot._
 
-//  val dot = GraphDot.generateDot(repository.head._2.innerGraph, petriNetTheme[Place[_], Transition[_, _, _]])
+  val dot = GraphDot.generateDot(repository.head._2.innerGraph, petriNetTheme[Place[_], Transition[_, _, _]])
 
-  val repositoryRoutes = pathPrefix("repository") {
-
-    path("index") {
-      // returns a pageable index of all topologies
-      get { complete("") }
+  val repositoryRoutes = pathPrefix("process") {
+    path("dot") {
+      get { complete(dot) }
     }
   }
+
+  val dashBoardRoute = path("dashboard") {
+    get {
+      complete {
+        HttpResponse(entity = HttpEntity(ContentTypes.`text/html(UTF-8)`, ByteString(StaticPages.dashboard.render)))
+      }
+    }
+  }
+
+  val resources = pathPrefix("resources") { getFromResourceDirectory("") }
 
   val processRoutes = pathPrefix("process") {
 
@@ -64,7 +75,7 @@ trait Routes extends Directives with TestProcess {
                 val msg = FireTransition(tid.toLong, ())
                 val futureResult = actorSelection.ask(msg).mapTo[TransitionResult].map {
                   case success: TransitionFired[_] ⇒ "success"
-                  case failure: TransitionFailed               ⇒ "failure"
+                  case failure: TransitionFailed   ⇒ "failure"
                 }
                 complete(futureResult)
               }

@@ -26,6 +26,13 @@ object PetriNetProcess {
    */
   case object GetState extends Command
 
+  object FireTransition {
+
+    def apply[I](t: Transition[I, _, _], input: I): FireTransition = FireTransition(t.id, input)
+
+    def apply(t: Transition[Unit, _, _]): FireTransition = FireTransition(t.id, ())
+  }
+
   /**
    * Command to fire a specific transition with input.
    */
@@ -42,12 +49,22 @@ object PetriNetProcess {
   /**
    *  Response indicating that a transition has fired successfully
    */
-  case class TransitionFired[S](transition_id: Long, consumed: Marking, produced: Marking, marking: Marking, state: S) extends TransitionResult
+  case class TransitionFired[S](
+    transition_id: Long,
+    consumed: Marking,
+    produced: Marking,
+    marking: Marking,
+    state: S) extends TransitionResult
 
   /**
    *  Response indicating that a transition has failed.
    */
-  case class TransitionFailed(transition_id: Long, consume: Marking, input: Any, reason: Throwable) extends TransitionResult
+  case class TransitionFailed(
+    transition_id: Long,
+    consume: Marking,
+    input: Any,
+    reason: Throwable,
+    strategy: ExceptionStrategy) extends TransitionResult
 
   /**
    * Response indicating that the transition could not be fired because it is not enabled.
@@ -175,7 +192,7 @@ class PetriNetProcess[S](process: ExecutablePetriNet[S], initialState: String â‡
               runningJobs -= id
           }
 
-          sender ! TransitionFailed(job.transition, job.consume, job.input, reason)
+          sender ! TransitionFailed(job.transition, job.consume, job.input, reason, currentStrategy)
       }
 
     case e: TransitionFailed â‡’

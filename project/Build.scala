@@ -2,6 +2,7 @@ import sbt._
 import sbt.Keys._
 import spray.revolver.RevolverPlugin.Revolver
 import com.trueaccord.scalapb.{ScalaPbPlugin => PB}
+import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 
 object Build extends Build {
 
@@ -67,20 +68,38 @@ object Build extends Build {
     ))
 
   lazy val analyse = Project("analyse", file("analyse"))
-    .dependsOn(akka)
-    .settings(defaultProjectSettings ++ Seq(
-      resolvers            += "krasserm at bintray" at "http://dl.bintray.com/krasserm/maven",
-      name                 := "kagera-analyse",
-      libraryDependencies ++= Seq(akkaAnalyticsCassandra, akkaHttp)
-    ))
+      .dependsOn(akka)
+      .settings(defaultProjectSettings ++ Seq(
+        resolvers            += "krasserm at bintray" at "http://dl.bintray.com/krasserm/maven",
+        name                 := "kagera-analyse",
+        libraryDependencies ++= Seq(akkaAnalyticsCassandra, akkaHttp)
+      ))
 
-  lazy val demo = Project("demo", file("demo"))
-    .dependsOn(api, visualization, akka, analyse)
-    .settings(defaultProjectSettings ++ Seq(
-      libraryDependencies ++= Seq(akkaHttp, akkaPersistenceQuery, akkaPersistenceCassandra),
-      name      := "kagera-demo-app",
+  lazy val demo = (crossProject.crossType(CrossType.Full) in file("demo")).
+    settings(defaultProjectSettings: _*).
+    settings(
+      unmanagedSourceDirectories in Compile += baseDirectory.value  / "shared" / "main" / "scala",
+      libraryDependencies ++= Seq(
+        "com.lihaoyi" %%% "scalatags" % "0.4.6"
+      )).
+    jsSettings(
+      libraryDependencies ++= Seq(
+        "org.scala-js" %%% "scalajs-dom" % "0.8.0"
+      )).
+    jvmSettings(
+      libraryDependencies ++= Seq(
+        akkaHttp,
+        akkaPersistenceQuery,
+        akkaPersistenceCassandra),
+      name      := "demo-app",
       mainClass := Some("io.kagera.demo.Main")
-    ))
+    )
+
+  lazy val demoJs = demo.js
+  lazy val demoJvm = demo.jvm.dependsOn(api, visualization, akka, analyse).settings(
+    // include javascript compiled resources from js module
+    (resources in Compile) += (fastOptJS in (demoJs, Compile)).value.data
+  )
 
 
   lazy val root = Project("kagera", file(".")).aggregate(api, akka, visualization)
