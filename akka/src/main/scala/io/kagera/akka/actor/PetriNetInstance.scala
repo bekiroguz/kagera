@@ -30,12 +30,12 @@ object PetriNetInstance {
 
   def petriNetInstancePersistenceId(processId: String): String = s"process-$processId"
 
-  def instanceState[S](instance: Instance[S]): InstanceState[S] = {
+  def instanceState[S](instance: Instance[S]): InstanceState = {
     val failures = instance.failedJobs.map { e ⇒
       e.transitionId -> PetriNetInstanceProtocol.ExceptionState(e.consecutiveFailureCount, e.failureReason, e.failureStrategy)
     }.toMap
 
-    InstanceState[S](instance.sequenceNr, instance.marking, instance.state, failures)
+    InstanceState(instance.sequenceNr, instance.marking, instance.state, failures)
   }
 
   def props[S](topology: ExecutablePetriNet[S], settings: Settings = defaultSettings): Props =
@@ -66,7 +66,8 @@ class PetriNetInstance[S](
     case msg @ Initialize(marking, state) ⇒
       log.debug(s"Received message: {}", msg)
       val uninitialized = Instance.uninitialized[S](topology)
-      persistEvent(uninitialized, InitializedEvent(marking, state.asInstanceOf[S])) {
+      val event = InitializedEvent(marking, state.asInstanceOf[S])
+      persistEvent(uninitialized, event) {
         (applyEvent(uninitialized) _)
           .andThen(step)
           .andThen { _ ⇒ sender() ! Initialized(marking, state) }
@@ -78,6 +79,7 @@ class PetriNetInstance[S](
 
   def running(instance: Instance[S]): Receive = {
     case IdleStop(n) if n == instance.sequenceNr && instance.activeJobs.isEmpty ⇒
+      log.debug(s"Instance was idle for ${settings.idleTTL}, stopping the actor")
       context.stop(context.self)
 
     case GetState ⇒
@@ -92,7 +94,7 @@ class PetriNetInstance[S](
         (applyEvent(instance) _)
           .andThen(step)
           .andThen { updatedInstance ⇒
-            sender() ! TransitionFired[S](transitionId, e.consumed, e.produced, instanceState(updatedInstance))
+            sender() ! TransitionFired(transitionId, e.consumed, e.produced, instanceState(updatedInstance))
           }
       )
 
@@ -130,7 +132,7 @@ class PetriNetInstance[S](
           log.warning(reason)
           sender() ! TransitionNotEnabled(id, reason)
       }
-    case msg: Initialize[_] ⇒
+    case msg: Initialize ⇒
       sender() ! IllegalCommand("Already initialized")
   }
 
@@ -141,8 +143,7 @@ class PetriNetInstance[S](
 
         if (jobs.isEmpty && updatedInstance.activeJobs.isEmpty)
           settings.idleTTL.foreach { ttl ⇒
-            log.debug("Process has no running jobs, killing the actor in: {}", ttl)
-            system.scheduler.scheduleOnce(ttl, context.self, PoisonPill)
+            system.scheduler.scheduleOnce(ttl, context.self, IdleStop(updatedInstance.sequenceNr))
           }
 
         jobs.foreach(job ⇒ executeJob(job, sender()))

@@ -19,13 +19,13 @@ object PetriNetInstanceProtocol {
 
   object Initialize {
 
-    def apply(marking: Marking): Initialize[Unit] = Initialize[Unit](marking, ())
+    def apply(marking: Marking): Initialize = Initialize(marking, ())
   }
 
   /**
    * Command to initialize a petri net instance.
    */
-  case class Initialize[S](marking: Marking, state: S) extends Command
+  case class Initialize(marking: Marking, state: Any) extends Command
 
   object FireTransition {
 
@@ -60,9 +60,9 @@ object PetriNetInstanceProtocol {
    *
    * This message is only send in response to an Initialize message.
    */
-  case class Initialized[S](
+  case class Initialized(
     marking: Marking,
-    state: S) extends Response
+    state: Any) extends Response
 
   /**
    * Any message that is a response to a FireTransition command.
@@ -74,11 +74,11 @@ object PetriNetInstanceProtocol {
   /**
    *  Response indicating that a transition has fired successfully
    */
-  case class TransitionFired[S](
+  case class TransitionFired(
     override val transitionId: Long,
     consumed: Marking,
     produced: Marking,
-    result: InstanceState[S]) extends TransitionResponse
+    result: InstanceState) extends TransitionResponse
 
   /**
    *  Response indicating that a transition has failed.
@@ -108,10 +108,10 @@ object PetriNetInstanceProtocol {
   /**
    * Response containing the state of the process.
    */
-  case class InstanceState[S](
+  case class InstanceState(
       sequenceNr: Long,
       marking: Marking,
-      state: S,
+      state: Any,
       failures: Map[Long, ExceptionState]) {
 
     def hasFailed(transitionId: Long): Boolean = failures.contains(transitionId)

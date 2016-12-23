@@ -47,17 +47,17 @@ class QueuePushingActor[E](queue: SourceQueueWithComplete[E], takeWhile: Any ⇒
 
 object PetriNetInstanceApi {
 
-  def hasEnabledTransitions[S](topology: ExecutablePetriNet[S]): InstanceState[S] ⇒ Boolean = state ⇒ {
+  def hasEnabledTransitions[S](topology: ExecutablePetriNet[S]): InstanceState ⇒ Boolean = state ⇒ {
     state.marking.keySet.map(p ⇒ topology.outgoingTransitions(p)).foldLeft(Set.empty[Transition[_, _, _]]) {
       case (result, transitions) ⇒ result ++ transitions
     }.exists(isEnabledInState(topology, state))
   }
 
-  def isEnabledInState[S](topology: ExecutablePetriNet[S], state: InstanceState[S])(t: Transition[_, _, _]): Boolean =
+  def isEnabledInState[S](topology: ExecutablePetriNet[S], state: InstanceState)(t: Transition[_, _, _]): Boolean =
     t.isAutomated && !state.hasFailed(t.id) && topology.isEnabled(state.marking)(t)
 
   def takeWhileEnabledTransitions[S](topology: ExecutablePetriNet[S], waitForRetries: Boolean): Any ⇒ Boolean = e ⇒ e match {
-    case e: TransitionFired[S]                               ⇒ hasEnabledTransitions(topology)(e.result)
+    case e: TransitionFired                                  ⇒ hasEnabledTransitions(topology)(e.result)
     case TransitionFailed(_, _, _, _, RetryWithDelay(delay)) ⇒ waitForRetries
     case msg @ _                                             ⇒ false
   }
@@ -82,29 +82,29 @@ class PetriNetInstanceApi[S](topology: ExecutablePetriNet[S], actor: ActorRef)(i
   /**
    * Fires a transition and confirms (waits) for the result of that transition firing.
    */
-  def askAndConfirmFirst(msg: Any)(implicit timeout: Timeout): Future[Xor[UnexpectedMessage, InstanceState[S]]] = {
+  def askAndConfirmFirst(msg: Any)(implicit timeout: Timeout): Future[Xor[UnexpectedMessage, InstanceState]] = {
     actor.ask(msg).map {
-      case e: TransitionFired[_] ⇒ Xor.Right(e.result.asInstanceOf[InstanceState[S]])
-      case msg @ _               ⇒ Xor.Left(UnexpectedMessage(s"Received unexepected message: $msg"))
+      case e: TransitionFired ⇒ Xor.Right(e.result)
+      case msg @ _            ⇒ Xor.Left(UnexpectedMessage(s"Received unexepected message: $msg"))
     }
   }
 
-  def askAndConfirmFirstSync(msg: Any)(implicit timeout: Timeout): Xor[UnexpectedMessage, InstanceState[S]] = {
+  def askAndConfirmFirstSync(msg: Any)(implicit timeout: Timeout): Xor[UnexpectedMessage, InstanceState] = {
     Await.result(askAndConfirmFirst(topology, msg), timeout.duration)
   }
 
   /**
    * Fires a transition and confirms (waits) for all responses of subsequent automated transitions.
    */
-  def askAndConfirmAll(msg: Any, waitForRetries: Boolean = false)(implicit timeout: Timeout): Future[Xor[ErrorResponse, InstanceState[S]]] = {
+  def askAndConfirmAll(msg: Any, waitForRetries: Boolean = false)(implicit timeout: Timeout): Future[Xor[ErrorResponse, InstanceState]] = {
 
     val futureMessages = askAndCollectAll(msg, waitForRetries).runWith(Sink.seq)
 
     futureMessages.map {
       _.lastOption match {
-        case Some(e: TransitionFired[_]) ⇒ Xor.Right(e.result.asInstanceOf[InstanceState[S]])
-        case Some(msg)                   ⇒ Xor.Left(UnexpectedMessage(s"Received unexpected message: $msg"))
-        case None                        ⇒ Xor.Left(UnknownProcessId)
+        case Some(e: TransitionFired) ⇒ Xor.Right(e.result)
+        case Some(msg)                ⇒ Xor.Left(UnexpectedMessage(s"Received unexpected message: $msg"))
+        case None                     ⇒ Xor.Left(UnknownProcessId)
       }
     }
   }

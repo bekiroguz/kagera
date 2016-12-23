@@ -61,7 +61,7 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       val actor = createPetriNetActor[Set[Int]](petriNet)
 
       actor ! Initialize(initialMarking, Set(1, 2, 3))
-      expectMsgClass(classOf[Initialized[_]])
+      expectMsgClass(classOf[Initialized])
 
       actor ! GetState
       expectMsgPF() { case InstanceState(_, _, _, _) ⇒ }
@@ -78,7 +78,7 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       val actor = createPetriNetActor[Set[Int]](petriNet)
 
       actor ! Initialize(initialMarking, Set.empty)
-      expectMsgClass(classOf[Initialized[_]])
+      expectMsgClass(classOf[Initialized])
 
       actor ! FireTransition(1, ())
 
@@ -95,7 +95,7 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       val actor = createPetriNetActor[Set[Int]](petriNet)
 
       actor ! Initialize(initialMarking, Set.empty)
-      expectMsgClass(classOf[Initialized[_]])
+      expectMsgClass(classOf[Initialized])
 
       actor ! FireTransition(1, ())
 
@@ -117,7 +117,7 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       val actor = createPetriNetActor[Set[Int]](petriNet)
 
       actor ! Initialize(initialMarking, Set.empty)
-      expectMsgClass(classOf[Initialized[_]])
+      expectMsgClass(classOf[Initialized])
 
       // attempt to fire the second transition
       actor ! FireTransition(2, ())
@@ -143,7 +143,7 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       val actor = createPetriNetActor[Set[Int]](petriNet)
 
       actor ! Initialize(initialMarking, Set.empty)
-      expectMsgClass(classOf[Initialized[_]])
+      expectMsgClass(classOf[Initialized])
 
       actor ! FireTransition(1, ())
 
@@ -171,7 +171,7 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       val actor = createPetriNetActor[Set[Int]](petriNet, actorName)
 
       actor ! Initialize(initialMarking, Set.empty)
-      expectMsgClass(classOf[Initialized[_]])
+      expectMsgClass(classOf[Initialized])
 
       // fire the first transition (t1) manually
       actor ! FireTransition(1, ())
@@ -184,7 +184,7 @@ class PetriNetInstanceSpec extends AkkaTestBase {
 
       // validate the final state
       actor ! GetState
-      expectMsg(InstanceState[Set[Int]](3, Marking(place(3) -> 1), Set(1, 2), Map.empty))
+      expectMsg(InstanceState(3, Marking(place(3) -> 1), Set(1, 2), Map.empty))
 
       // terminate the actor
       watch(actor)
@@ -198,7 +198,7 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       newActor ! GetState
 
       // assert that the actor is the same as before termination
-      expectMsg(InstanceState[Set[Int]](3, Marking(place(3) -> 1), Set(1, 2), Map.empty))
+      expectMsg(InstanceState(3, Marking(place(3) -> 1), Set(1, 2), Map.empty))
     }
 
     "Not re-fire a failed/blocked transition after being restored from persistent storage" in new TestSequenceNet {
@@ -213,7 +213,7 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       val actor = createPetriNetActor[Set[Int]](petriNet, actorName)
 
       actor ! Initialize(initialMarking, Set.empty)
-      expectMsgClass(classOf[Initialized[_]])
+      expectMsgClass(classOf[Initialized])
 
       // expect the next marking: p2 -> 1
       expectMsgPF() { case TransitionFired(1, _, _, _) ⇒ }
@@ -257,7 +257,7 @@ class PetriNetInstanceSpec extends AkkaTestBase {
         name = java.util.UUID.randomUUID().toString)
 
       actor ! Initialize(initialMarking, ())
-      expectMsgClass(classOf[Initialized[_]])
+      expectMsgClass(classOf[Initialized])
 
       watch(actor)
       expectMsgClass(classOf[Terminated])
@@ -287,7 +287,7 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       val actor = createPetriNetActor(petriNet)
 
       actor ! Initialize(initialMarking, ())
-      expectMsgClass(classOf[Initialized[_]])
+      expectMsgClass(classOf[Initialized])
 
       // fire the first transition manually
       actor ! FireTransition(1, ())

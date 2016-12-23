@@ -30,7 +30,7 @@ class PetriNetInstanceApiSpec extends AkkaTestBase {
       val actor = PetriNetInstanceSpec.createPetriNetActor[Set[Int]](petriNet)
 
       actor ! Initialize(initialMarking, Set.empty)
-      expectMsgClass(classOf[Initialized[_]])
+      expectMsgClass(classOf[Initialized])
 
       val api = new PetriNetInstanceApi(petriNet, actor)
       val source: Source[TransitionResponse, NotUsed] = api.askAndCollectAll(FireTransition(1, ()))

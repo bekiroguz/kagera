@@ -46,8 +46,8 @@ class QuerySpec extends TestKit(ActorSystem("QuerySpec", AkkaTestBase.defaultTes
 
       instance ! Initialize(Marking(p1 -> 1))
       expectMsg(Initialized(Marking(p1 -> 1), ()))
-      expectMsgPF(timeOut) { case e: TransitionFired[_] if e.transitionId == t1.id ⇒ }
-      expectMsgPF(timeOut) { case e: TransitionFired[_] if e.transitionId == t2.id ⇒ }
+      expectMsgPF(timeOut) { case TransitionFired(1, _, _, _) ⇒ }
+      expectMsgPF(timeOut) { case TransitionFired(2, _, _, _) ⇒ }
 
       // wait for all events to be available in the read journal
       Thread.sleep(100)
