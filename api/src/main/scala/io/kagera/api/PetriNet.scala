@@ -85,13 +85,4 @@ trait PetriNet[P, T] {
    * @return The set of nodes.
    */
   def nodes: scala.collection.Set[Either[P, T]]
-
-  /**
-   * Checks whether a transition is 'enabled' in a certain marking.
-   *
-   * @param marking
-   * @param t
-   * @return
-   */
-  def isEnabledInMarking(marking: MultiSet[P])(t: T): Boolean = marking.isSubSet(inMarking(t))
 }
