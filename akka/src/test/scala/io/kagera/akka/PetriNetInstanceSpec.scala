@@ -32,13 +32,15 @@ class PetriNetInstanceSpec extends AkkaTestBase {
         transition()(_ ⇒ Added(2))
       )
 
+      val initialState = Set(1, 2, 3)
+
       val actor = createPetriNetActor[Set[Int]](petriNet)
 
-      actor ! Initialize(initialMarking, Set(1, 2, 3))
-      expectMsg(Initialized(initialMarking, Set(1, 2, 3)))
+      actor ! Initialize(initialMarking, initialState)
+      expectMsg(Initialized(initialMarking, initialState))
     }
 
-    "Before being intialized respond with an IllegalCommand message on receiving a GetState command" in new TestSequenceNet {
+    "Before being intialized respond with an IllegalCommand message and terminate on receiving a GetState command" in new TestSequenceNet {
 
       override val sequence = Seq(
         transition()(_ ⇒ Added(1)),
@@ -47,8 +49,10 @@ class PetriNetInstanceSpec extends AkkaTestBase {
 
       val actor = createPetriNetActor[Set[Int]](petriNet)
 
+      watch(actor)
       actor ! GetState
       expectMsgClass(classOf[IllegalCommand])
+      expectMsgClass(classOf[Terminated])
     }
 
     "Afer being initialized respond with an InstanceState message on receiving a GetState command" in new TestSequenceNet {
@@ -59,13 +63,13 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       )
 
       val actor = createPetriNetActor[Set[Int]](petriNet)
+      val initialState = Set(1, 2, 3)
 
-      actor ! Initialize(initialMarking, Set(1, 2, 3))
+      actor ! Initialize(initialMarking, initialState)
       expectMsgClass(classOf[Initialized])
 
       actor ! GetState
-      expectMsgPF() { case InstanceState(_, _, _, _) ⇒ }
-
+      expectMsgPF() { case InstanceState(1, `initialMarking`, `initialState`, _) ⇒ }
     }
 
     "Respond with a TransitionFailed message if a transition failed to fire" in new TestSequenceNet {
@@ -183,8 +187,9 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       expectMsgPF() { case TransitionFired(2, _, _, result) if result.marking == Marking(place(3) -> 1) ⇒ }
 
       // validate the final state
+      val expectedFinalState = InstanceState(3, Marking(place(3) -> 1), Set(1, 2), Map.empty)
       actor ! GetState
-      expectMsg(InstanceState(3, Marking(place(3) -> 1), Set(1, 2), Map.empty))
+      expectMsg(expectedFinalState)
 
       // terminate the actor
       watch(actor)
@@ -198,7 +203,7 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       newActor ! GetState
 
       // assert that the actor is the same as before termination
-      expectMsg(InstanceState(3, Marking(place(3) -> 1), Set(1, 2), Map.empty))
+      expectMsg(expectedFinalState)
     }
 
     "Not re-fire a failed/blocked transition after being restored from persistent storage" in new TestSequenceNet {
