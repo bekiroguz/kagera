@@ -39,7 +39,7 @@ object PetriNetInstance {
   }
 
   def props[S](topology: ExecutablePetriNet[S], settings: Settings = defaultSettings): Props =
-    Props(new PetriNetInstance[S](topology, settings, new TransitionExecutorImpl[S](topology)))
+    Props(new PetriNetInstance[S](topology, settings, new AsyncTransitionExecutor[S](topology)(settings.evaluationStrategy)))
 }
 
 /**
@@ -66,7 +66,7 @@ class PetriNetInstance[S](
     case msg @ Initialize(marking, state) ⇒
       log.debug(s"Received message: {}", msg)
       val uninitialized = Instance.uninitialized[S](topology)
-      val event = InitializedEvent(marking, state.asInstanceOf[S])
+      val event = InitializedEvent(marking, state)
       persistEvent(uninitialized, event) {
         (applyEvent(uninitialized) _)
           .andThen(step)
@@ -153,7 +153,7 @@ class PetriNetInstance[S](
   }
 
   def executeJob[E](job: Job[S, E], originalSender: ActorRef) =
-    runJobAsync(job, executor)(settings.evaluationStrategy).unsafeRunAsyncFuture().pipeTo(context.self)(originalSender)
+    runJobAsync(job, executor).unsafeRunAsyncFuture().pipeTo(context.self)(originalSender)
 
   override def onRecoveryCompleted(instance: Instance[S]) = step(instance)
 }

@@ -1,15 +1,14 @@
 package io.kagera
 
-import java.io.{ PrintWriter, StringWriter }
+import java.io.{PrintWriter, StringWriter}
 
 import cats.data.State
-import fs2.{ Strategy, Task }
+import fs2.Task
 import io.kagera.api._
 import io.kagera.api.colored._
 import io.kagera.execution.EventSourcing._
 
 import scala.collection.Set
-import scala.util.Random
 
 package object execution {
 
@@ -74,7 +73,7 @@ package object execution {
   /**
    * Executes a job returning a Task[TransitionEvent]
    */
-  def runJobAsync[S, E](job: Job[S, E], executor: TransitionExecutor[S])(implicit S: Strategy): Task[TransitionEvent] = {
+  def runJobAsync[S, E](job: Job[S, E], executor: TransitionExecutor[S]): Task[TransitionEvent] = {
     val startTime = System.currentTimeMillis()
 
     executor.fireTransition(job.transition)(job.consume, job.processState, job.input).map {
@@ -90,6 +89,6 @@ package object execution {
         val stackTraceString = sw.toString
 
         TransitionFailedEvent(job.id, job.transition.id, startTime, System.currentTimeMillis(), job.consume, Some(job.input), stackTraceString, failureStrategy)
-    }.async
+    }
   }
 }

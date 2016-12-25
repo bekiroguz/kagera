@@ -117,8 +117,6 @@ package object colored {
     def getEdge(p: Place[_], t: Transition[_, _, _]): Option[PTEdge[Any]] = petriNet.innerGraph.findPTEdge(p, t).map(_.label.asInstanceOf[PTEdge[Any]])
   }
 
-  implicit def toMarking(map: Map[Place[_], MultiSet[_]]): Marking = HMap[Place, MultiSet](map)
-
   implicit def placeLabel[C](p: Place[C]): Label = Label(p.label)
 
   implicit def placeIdentifier(p: Place[_]): Id = Id(p.id)
