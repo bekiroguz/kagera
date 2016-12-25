@@ -1,8 +1,9 @@
-package io.kagera.api.colored
+package io.kagera.execution
 
 import fs2.{ Strategy, Task }
+import io.kagera.api.colored.{ Transition, _ }
 
-class AsyncTransitionExecutor[State](topology: ColoredPetriNet)(implicit strategy: Strategy) extends TransitionExecutor[State] {
+class AsyncTransitionExecutor[State](topology: ColoredPetriNet)(implicit strategy: Strategy) extends TransitionExecutor[State, Transition] {
 
   val cachedTransitionFunctions: Map[Transition[_, _, _], _] =
     topology.transitions.map(t ⇒ t -> t.apply(topology.inMarking(t), topology.outMarking(t))).toMap

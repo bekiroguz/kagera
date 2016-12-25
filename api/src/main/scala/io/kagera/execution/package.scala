@@ -1,6 +1,6 @@
 package io.kagera
 
-import java.io.{PrintWriter, StringWriter}
+import java.io.{ PrintWriter, StringWriter }
 
 import cats.data.State
 import fs2.Task
@@ -73,7 +73,7 @@ package object execution {
   /**
    * Executes a job returning a Task[TransitionEvent]
    */
-  def runJobAsync[S, E](job: Job[S, E], executor: TransitionExecutor[S]): Task[TransitionEvent] = {
+  def runJobAsync[S, E](job: Job[S, E], executor: TransitionExecutor[S, Transition]): Task[TransitionEvent] = {
     val startTime = System.currentTimeMillis()
 
     executor.fireTransition(job.transition)(job.consume, job.processState, job.input).map {

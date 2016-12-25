@@ -1,8 +1,7 @@
-package io.kagera.api.colored
+package io.kagera.api
 
+import io.kagera.api.colored.{ ExecutablePetriNet, Place }
 import io.kagera.api.colored.dsl._
-
-import scala.concurrent.ExecutionContext
 
 object Generators {
 

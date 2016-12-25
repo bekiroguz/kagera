@@ -48,7 +48,7 @@ object PetriNetInstance {
 class PetriNetInstance[S](
   override val topology: ExecutablePetriNet[S],
   val settings: Settings,
-  executor: TransitionExecutor[S]) extends PersistentActor
+  executor: TransitionExecutor[S, Transition]) extends PersistentActor
     with ActorLogging
     with PetriNetInstanceRecovery[S] {
 
