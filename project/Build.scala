@@ -15,6 +15,7 @@ object Build extends Build {
     "-feature",
     "-language:implicitConversions",
     "-language:postfixOps",
+    "-language:higherKinds",
     "-unchecked",
     "-deprecation",
     "-Xlog-reflective-calls"

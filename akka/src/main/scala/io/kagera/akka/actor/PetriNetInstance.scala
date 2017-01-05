@@ -1,9 +1,14 @@
 package io.kagera.akka.actor
 
-import akka.actor.{ ActorLogging, ActorRef, PoisonPill, Props }
+import scala.concurrent.duration._
+import scala.language.existentials
+
+import akka.actor._
 import akka.pattern.pipe
 import akka.persistence.PersistentActor
+
 import fs2.Strategy
+
 import io.kagera.akka.actor.PetriNetInstance.Settings
 import io.kagera.akka.actor.PetriNetInstanceProtocol._
 import io.kagera.api.colored.ExceptionStrategy.RetryWithDelay
@@ -11,9 +16,6 @@ import io.kagera.api._
 import io.kagera.api.colored._
 import io.kagera.execution.EventSourcing._
 import io.kagera.execution._
-
-import scala.concurrent.duration._
-import scala.language.existentials
 
 object PetriNetInstance {
 
@@ -29,14 +31,6 @@ object PetriNetInstance {
   private case class IdleStop(seq: Long)
 
   def petriNetInstancePersistenceId(processId: String): String = s"process-$processId"
-
-  def instanceState[S](instance: Instance[S]): InstanceState = {
-    val failures = instance.failedJobs.map { e ⇒
-      e.transitionId -> PetriNetInstanceProtocol.ExceptionState(e.consecutiveFailureCount, e.failureReason, e.failureStrategy)
-    }.toMap
-
-    InstanceState(instance.sequenceNr, instance.marking, instance.state, failures)
-  }
 
   def props[S](topology: ExecutablePetriNet[S], settings: Settings = defaultSettings): Props =
     Props(new PetriNetInstance[S](topology, settings, new AsyncTransitionExecutor[S](topology)(settings.evaluationStrategy)))
@@ -84,7 +78,7 @@ class PetriNetInstance[S](
 
     case GetState ⇒
       log.debug(s"Received message: GetState")
-      sender() ! instanceState(instance)
+      sender() ! InstanceState(instance)
 
     case e @ TransitionFiredEvent(jobId, transitionId, timeStarted, timeCompleted, consumed, produced, output) ⇒
       log.debug(s"Received message: {}", e)
@@ -93,9 +87,12 @@ class PetriNetInstance[S](
       persistEvent(instance, e)(
         (applyEvent(instance) _)
           .andThen(step)
-          .andThen { updatedInstance ⇒
-            sender() ! TransitionFired(transitionId, e.consumed, e.produced, instanceState(updatedInstance))
+          .andThen {
+            case (updatedInstance, jobs) ⇒
+              sender() ! TransitionFired(jobId, transitionId, e.consumed, e.produced, InstanceState(updatedInstance), jobs.map(JobState(_)))
+              updatedInstance
           }
+
       )
 
     case e @ TransitionFailedEvent(jobId, transitionId, timeStarted, timeFailed, consume, input, reason, strategy) ⇒
@@ -106,7 +103,7 @@ class PetriNetInstance[S](
       val updatedInstance = applyEvent(instance)(e)
 
       def updateAndRespond(instance: Instance[S]) = {
-        sender() ! TransitionFailed(transitionId, consume, input, reason, strategy)
+        sender() ! TransitionFailed(jobId, transitionId, consume, input, reason, strategy)
         context become running(instance)
       }
 
@@ -137,7 +134,7 @@ class PetriNetInstance[S](
   }
 
   // TODO remove side effecting here
-  def step(instance: Instance[S]): Instance[S] = {
+  def step(instance: Instance[S]): (Instance[S], Set[Job[S, _]]) = {
     fireAllEnabledTransitions.run(instance).value match {
       case (updatedInstance, jobs) ⇒
 
@@ -148,12 +145,12 @@ class PetriNetInstance[S](
 
         jobs.foreach(job ⇒ executeJob(job, sender()))
         context become running(updatedInstance)
-        updatedInstance
+        (updatedInstance, jobs)
     }
   }
 
   def executeJob[E](job: Job[S, E], originalSender: ActorRef) =
-    runJobAsync(job, executor).unsafeRunAsyncFuture().pipeTo(context.self)(originalSender)
+   runJobAsync(job, executor).unsafeRunAsyncFuture().pipeTo(context.self)(originalSender)
 
   override def onRecoveryCompleted(instance: Instance[S]) = step(instance)
 }

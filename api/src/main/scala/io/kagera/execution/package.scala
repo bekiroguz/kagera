@@ -8,8 +8,6 @@ import io.kagera.api._
 import io.kagera.api.colored._
 import io.kagera.execution.EventSourcing._
 
-import scala.collection.Set
-
 package object execution {
 
   /**

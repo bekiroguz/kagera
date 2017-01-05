@@ -34,37 +34,43 @@ case object UnknownProcessId extends ErrorResponse {
  * TODO: Guarantee that this actor dies after not receiving messages for some time. Currently, in case messages
  * get lost, this actor will live indefinitely creating the possibility of memory leak.
  */
-class QueuePushingActor[E](queue: SourceQueueWithComplete[E], takeWhile: Any ⇒ Boolean) extends Actor {
+class QueuePushingActor(queue: SourceQueueWithComplete[TransitionResponse], waitForRetries: Boolean) extends Actor {
+  var runningJobs = Set.empty[Long]
+
   override def receive: Receive = {
-    case msg @ _ ⇒
-      queue.offer(msg.asInstanceOf[E])
-      if (!takeWhile(msg)) {
-        queue.complete()
-        context.stop(self)
-      }
+    case e: TransitionFired ⇒
+      queue.offer(e)
+
+      val newJobIds = e.newJobs.map(_.id)
+      runningJobs = runningJobs ++ newJobIds - e.jobId
+
+      stopActorIfDone
+
+    case msg @ TransitionFailed(_, _, _, _, _, RetryWithDelay(_)) if waitForRetries ⇒
+      queue.offer(msg)
+
+    case msg @ TransitionFailed(jobId, _, _, _, _, _) ⇒
+      runningJobs = runningJobs - jobId
+      queue.offer(msg)
+      stopActorIfDone
+
+    case m @ _ ⇒
+      runningJobs = Set.empty
+      stopActorIfDone
+  }
+
+  def stopActorIfDone: Unit = {
+    if (runningJobs.isEmpty) {
+      queue.complete()
+      context.stop(self)
+    }
   }
 }
 
 object PetriNetInstanceApi {
-
-  def hasEnabledTransitions[S](topology: ExecutablePetriNet[S]): InstanceState ⇒ Boolean = state ⇒ {
-    state.marking.keySet.map(p ⇒ topology.outgoingTransitions(p)).foldLeft(Set.empty[Transition[_, _, _]]) {
-      case (result, transitions) ⇒ result ++ transitions
-    }.exists(isEnabledInState(topology, state))
-  }
-
-  def isEnabledInState[S](topology: ExecutablePetriNet[S], state: InstanceState)(t: Transition[_, _, _]): Boolean =
-    t.isAutomated && !state.hasFailed(t.id) && topology.isEnabled(state.marking)(t)
-
-  def takeWhileEnabledTransitions[S](topology: ExecutablePetriNet[S], waitForRetries: Boolean): Any ⇒ Boolean = e ⇒ e match {
-    case e: TransitionFired                                  ⇒ hasEnabledTransitions(topology)(e.result)
-    case TransitionFailed(_, _, _, _, RetryWithDelay(delay)) ⇒ waitForRetries
-    case msg @ _                                             ⇒ false
-  }
-
-  def askSource[E](actor: ActorRef, msg: Any, takeWhile: Any ⇒ Boolean)(implicit actorSystem: ActorSystem): Source[E, NotUsed] = {
-    Source.queue[E](100, OverflowStrategy.fail).mapMaterializedValue { queue ⇒
-      val sender = actorSystem.actorOf(Props(new QueuePushingActor[E](queue, takeWhile)))
+  def askSource(actor: ActorRef, msg: Any, waitForRetries: Boolean)(implicit actorSystem: ActorSystem): Source[TransitionResponse, NotUsed] = {
+    Source.queue[TransitionResponse](100, OverflowStrategy.fail).mapMaterializedValue { queue ⇒
+      val sender = actorSystem.actorOf(Props(new QueuePushingActor(queue, waitForRetries)))
       actor.tell(msg, sender)
       NotUsed.getInstance()
     }
@@ -98,7 +104,7 @@ class PetriNetInstanceApi[S](topology: ExecutablePetriNet[S], actor: ActorRef)(i
    */
   def askAndConfirmAll(msg: Any, waitForRetries: Boolean = false)(implicit timeout: Timeout): Future[Xor[ErrorResponse, InstanceState]] = {
 
-    val futureMessages = askAndCollectAll(msg, waitForRetries).runWith(Sink.seq)
+    val futureMessages: Future[Seq[TransitionResponse]] = askAndCollectAll(msg, waitForRetries).runWith(Sink.seq)
 
     futureMessages.map {
       _.lastOption match {
@@ -129,7 +135,7 @@ class PetriNetInstanceApi[S](topology: ExecutablePetriNet[S], actor: ActorRef)(i
    * If the instance is 'uninitialized' returns an empty source.
    */
   def askAndCollectAll(msg: Any, waitForRetries: Boolean = false): Source[TransitionResponse, NotUsed] = {
-    askSource[Any](actor, msg, takeWhileEnabledTransitions(topology, waitForRetries)).map {
+    askSource(actor, msg, waitForRetries).map {
       case e: TransitionResponse ⇒ Xor.Right(e)
       case msg @ _               ⇒ Xor.Left(s"Received unexpected message: $msg")
     }.takeWhile(_.isRight).map(_.asInstanceOf[Xor.Right[TransitionResponse]].b)

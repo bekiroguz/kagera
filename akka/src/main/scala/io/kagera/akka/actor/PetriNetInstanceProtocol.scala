@@ -1,5 +1,6 @@
 package io.kagera.akka.actor
 
+import io.kagera.api.colored.ExceptionStrategy.RetryWithDelay
 import io.kagera.api.colored.{ ExceptionStrategy, Marking, Transition }
 
 /**
@@ -72,18 +73,21 @@ object PetriNetInstanceProtocol {
   }
 
   /**
-   *  Response indicating that a transition has fired successfully
+   * Response indicating that a transition has fired successfully
    */
   case class TransitionFired(
+    jobId: Long,
     override val transitionId: Long,
     consumed: Marking,
     produced: Marking,
-    result: InstanceState) extends TransitionResponse
+    result: InstanceState,
+    newJobs: Set[JobState]) extends TransitionResponse
 
   /**
-   *  Response indicating that a transition has failed.
+   * Response indicating that a transition has failed.
    */
   case class TransitionFailed(
+    jobId: Long,
     override val transitionId: Long,
     consume: Marking,
     input: Any,
@@ -105,6 +109,34 @@ object PetriNetInstanceProtocol {
     failureReason: String,
     failureStrategy: ExceptionStrategy)
 
+  object ExceptionState {
+
+    def apply(exceptionState: io.kagera.execution.ExceptionState): ExceptionState =
+      ExceptionState(exceptionState.consecutiveFailureCount, exceptionState.failureReason, exceptionState.failureStrategy)
+  }
+
+  /**
+   * Response containing the state of the `Job`.
+   */
+  case class JobState(
+      id: Long,
+      transitionId: Long,
+      consumedMarking: Marking,
+      input: Any,
+      exceptionState: Option[ExceptionState]) {
+
+    def isActive: Boolean = exceptionState match {
+      case Some(ExceptionState(_, _, RetryWithDelay(_))) ⇒ true
+      case None                                          ⇒ true
+      case _                                             ⇒ false
+    }
+  }
+
+  object JobState {
+    def apply(job: io.kagera.execution.Job[_, _]): JobState =
+      JobState(job.id, job.transition.id, job.consume, job.input, job.failure.map(ExceptionState(_)))
+  }
+
   /**
    * Response containing the state of the process.
    */
@@ -112,8 +144,23 @@ object PetriNetInstanceProtocol {
       sequenceNr: Long,
       marking: Marking,
       state: Any,
-      failures: Map[Long, ExceptionState]) {
+      jobs: Map[Long, JobState]) {
 
-    def hasFailed(transitionId: Long): Boolean = failures.contains(transitionId)
+    def hasFailed(transitionId: Long): Boolean = jobs.values.exists {
+      case JobState(_, `transitionId`, _, _, Some(_)) ⇒ true
+      case _                                          ⇒ false
+    }
+
+    @transient
+    lazy val reservedMarking: Marking = jobs.map { case (id, job) ⇒ job.consumedMarking }.reduceOption(_ |+| _).getOrElse(Marking.empty)
+
+    @transient
+    lazy val availableMarking: Marking = marking |-| reservedMarking
   }
+
+  object InstanceState {
+    def apply(instance: io.kagera.execution.Instance[_]): InstanceState =
+      InstanceState(instance.sequenceNr, instance.marking, instance.state, instance.jobs.mapValues(JobState(_)))
+  }
+
 }

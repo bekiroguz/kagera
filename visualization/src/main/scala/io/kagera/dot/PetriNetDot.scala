@@ -2,7 +2,6 @@ package io.kagera.dot
 
 import io.kagera.api.multiset.MultiSet
 
-import scala.language.higherKinds
 import scalax.collection.Graph
 import scalax.collection.edge.WLDiEdge
 import scalax.collection.io.dot._

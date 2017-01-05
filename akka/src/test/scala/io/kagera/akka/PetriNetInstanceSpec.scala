@@ -103,7 +103,7 @@ class PetriNetInstanceSpec extends AkkaTestBase {
 
       actor ! FireTransition(1, ())
 
-      expectMsgPF() { case TransitionFailed(1, _, _, _, _) ⇒ }
+      expectMsgPF() { case TransitionFailed(_, 1, _, _, _, _) ⇒ }
 
       actor ! FireTransition(1, ())
 
@@ -152,9 +152,9 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       actor ! FireTransition(1, ())
 
       // expect 3 failure messages
-      expectMsgPF() { case TransitionFailed(1, _, _, _, RetryWithDelay(20)) ⇒ }
-      expectMsgPF() { case TransitionFailed(1, _, _, _, RetryWithDelay(40)) ⇒ }
-      expectMsgPF() { case TransitionFailed(1, _, _, _, Fatal) ⇒ }
+      expectMsgPF() { case TransitionFailed(_, 1, _, _, _, RetryWithDelay(20)) ⇒ }
+      expectMsgPF() { case TransitionFailed(_, 1, _, _, _, RetryWithDelay(40)) ⇒ }
+      expectMsgPF() { case TransitionFailed(_, 1, _, _, _, Fatal) ⇒ }
 
       // attempt to fire t1 explicitly
       actor ! FireTransition(1, ())
@@ -181,10 +181,10 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       actor ! FireTransition(1, ())
 
       // expect the next marking: p2 -> 1
-      expectMsgPF() { case TransitionFired(1, _, _, result) if result.marking == Marking(place(2) -> 1) ⇒ }
+      expectMsgPF() { case TransitionFired(_, 1, _, _, result, _) if result.marking == Marking(place(2) -> 1) ⇒ }
 
       // since t2 fires automatically we also expect the next marking: p3 -> 1
-      expectMsgPF() { case TransitionFired(2, _, _, result) if result.marking == Marking(place(3) -> 1) ⇒ }
+      expectMsgPF() { case TransitionFired(_, 2, _, _, result, _) if result.marking == Marking(place(3) -> 1) ⇒ }
 
       // validate the final state
       val expectedFinalState = InstanceState(3, Marking(place(3) -> 1), Set(1, 2), Map.empty)
@@ -221,8 +221,8 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       expectMsgClass(classOf[Initialized])
 
       // expect the next marking: p2 -> 1
-      expectMsgPF() { case TransitionFired(1, _, _, _) ⇒ }
-      expectMsgPF() { case TransitionFailed(2, _, _, _, BlockTransition) ⇒ }
+      expectMsgPF() { case TransitionFired(_, 1, _, _, _, _) ⇒ }
+      expectMsgPF() { case TransitionFailed(_, 2, _, _, _, BlockTransition) ⇒ }
 
       // terminate the actor
       watch(actor)
@@ -297,7 +297,7 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       // fire the first transition manually
       actor ! FireTransition(1, ())
 
-      expectMsgPF() { case TransitionFired(1, _, _, _) ⇒ }
+      expectMsgPF() { case TransitionFired(_, 1, _, _, _, _) ⇒ }
 
       import org.scalatest.concurrent.Timeouts._
 
@@ -305,8 +305,8 @@ class PetriNetInstanceSpec extends AkkaTestBase {
 
         // expect that the two subsequent transitions are fired automatically and in parallel (in any order)
         expectMsgInAnyOrderPF(
-          { case TransitionFired(2, _, _, _) ⇒ },
-          { case TransitionFired(3, _, _, _) ⇒ }
+          { case TransitionFired(_, 2, _, _, _, _) ⇒ },
+          { case TransitionFired(_, 3, _, _, _, _) ⇒ }
         )
       }
     }
