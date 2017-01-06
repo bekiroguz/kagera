@@ -20,5 +20,5 @@ case class Job[S, E](
     case _                                                ⇒ false
   }
 
-  lazy val failureCount = failure.map(_.consecutiveFailureCount).getOrElse(0)
+  def failureCount = failure.map(_.failureCount).getOrElse(0)
 }

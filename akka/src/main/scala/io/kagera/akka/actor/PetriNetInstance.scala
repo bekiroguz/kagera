@@ -67,7 +67,7 @@ class PetriNetInstance[S](
           .andThen { _ ⇒ sender() ! Initialized(marking, state) }
       }
     case msg: Command ⇒
-      sender() ! IllegalCommand("Only accepting Initialize commands in 'uninitialized' state")
+      sender() ! Uninitialized(processId)
       context.stop(context.self)
   }
 
@@ -130,7 +130,7 @@ class PetriNetInstance[S](
           sender() ! TransitionNotEnabled(id, reason)
       }
     case msg: Initialize ⇒
-      sender() ! IllegalCommand("Already initialized")
+      sender() ! AlreadyInitialized
   }
 
   // TODO remove side effecting here
@@ -150,7 +150,7 @@ class PetriNetInstance[S](
   }
 
   def executeJob[E](job: Job[S, E], originalSender: ActorRef) =
-   runJobAsync(job, executor).unsafeRunAsyncFuture().pipeTo(context.self)(originalSender)
+    runJobAsync(job, executor).unsafeRunAsyncFuture().pipeTo(context.self)(originalSender)
 
   override def onRecoveryCompleted(instance: Instance[S]) = step(instance)
 }

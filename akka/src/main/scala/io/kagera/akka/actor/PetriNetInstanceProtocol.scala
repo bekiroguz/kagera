@@ -49,12 +49,16 @@ object PetriNetInstanceProtocol {
   sealed trait Response
 
   /**
-   * Response indicating that the command could not be processed because of
-   * the current state of the actor.
+   * A response send in case any other command then 'Initialize' is sent to the actor in unitialized state.
    *
-   * This message is only send in response to Command messages.
+   * @param id The identifier of the unitialized actor.
    */
-  case class IllegalCommand(reason: String) extends Response
+  case class Uninitialized(id: String) extends Response
+
+  /**
+   * Returned in case a second Initialize is send after a first is processed
+   */
+  case object AlreadyInitialized extends Response
 
   /**
    * A response indicating that the instance has been initialized in a certain state.
@@ -112,7 +116,7 @@ object PetriNetInstanceProtocol {
   object ExceptionState {
 
     def apply(exceptionState: io.kagera.execution.ExceptionState): ExceptionState =
-      ExceptionState(exceptionState.consecutiveFailureCount, exceptionState.failureReason, exceptionState.failureStrategy)
+      ExceptionState(exceptionState.failureCount, exceptionState.failureReason, exceptionState.failureStrategy)
   }
 
   /**
@@ -145,11 +149,6 @@ object PetriNetInstanceProtocol {
       marking: Marking,
       state: Any,
       jobs: Map[Long, JobState]) {
-
-    def hasFailed(transitionId: Long): Boolean = jobs.values.exists {
-      case JobState(_, `transitionId`, _, _, Some(_)) ⇒ true
-      case _                                          ⇒ false
-    }
 
     @transient
     lazy val reservedMarking: Marking = jobs.map { case (id, job) ⇒ job.consumedMarking }.reduceOption(_ |+| _).getOrElse(Marking.empty)

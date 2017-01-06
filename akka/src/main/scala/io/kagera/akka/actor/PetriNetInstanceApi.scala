@@ -2,31 +2,17 @@ package io.kagera.akka.actor
 
 import akka.NotUsed
 import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
-import akka.pattern.ask
 import akka.stream.scaladsl.{ Sink, Source, SourceQueueWithComplete }
 import akka.stream.{ Materializer, OverflowStrategy }
 import akka.util.Timeout
-import cats.data.Xor
+import akka.pattern._
+
 import io.kagera.akka.actor.PetriNetInstanceProtocol._
 import io.kagera.api.colored.ExceptionStrategy.RetryWithDelay
-import io.kagera.api.colored.{ Transition, _ }
+import io.kagera.api.colored._
 
 import scala.collection.immutable.Seq
 import scala.concurrent.{ Await, Future }
-
-sealed trait ErrorResponse {
-  def msg: String
-}
-
-object ErrorResponse {
-  def unapply(arg: ErrorResponse): Option[String] = Some(arg.msg)
-}
-
-case class UnexpectedMessage(msg: String) extends ErrorResponse
-
-case object UnknownProcessId extends ErrorResponse {
-  val msg: String = s"Unknown process id"
-}
 
 /**
  * An actor that pushes all received messages on a SourceQueueWithComplete.
@@ -54,27 +40,26 @@ class QueuePushingActor(queue: SourceQueueWithComplete[TransitionResponse], wait
       queue.offer(msg)
       stopActorIfDone
 
-    case m @ _ ⇒
-      runningJobs = Set.empty
-      stopActorIfDone
+    case Uninitialized(id) ⇒
+      completeQueueAndStop()
+
+    case msg @ TransitionNotEnabled(id, reason) ⇒
+      queue.offer(msg)
+      completeQueueAndStop()
+
+    case msg @ _ ⇒
+      queue.fail(new IllegalStateException(s"Unexpected message: $msg"))
+      completeQueueAndStop()
   }
 
-  def stopActorIfDone: Unit = {
-    if (runningJobs.isEmpty) {
-      queue.complete()
-      context.stop(self)
-    }
+  def completeQueueAndStop() = {
+    queue.complete()
+    context.stop(self)
   }
-}
 
-object PetriNetInstanceApi {
-  def askSource(actor: ActorRef, msg: Any, waitForRetries: Boolean)(implicit actorSystem: ActorSystem): Source[TransitionResponse, NotUsed] = {
-    Source.queue[TransitionResponse](100, OverflowStrategy.fail).mapMaterializedValue { queue ⇒
-      val sender = actorSystem.actorOf(Props(new QueuePushingActor(queue, waitForRetries)))
-      actor.tell(msg, sender)
-      NotUsed.getInstance()
-    }
-  }
+  def stopActorIfDone: Unit =
+    if (runningJobs.isEmpty)
+      completeQueueAndStop()
 }
 
 /**
@@ -82,38 +67,10 @@ object PetriNetInstanceApi {
  */
 class PetriNetInstanceApi[S](topology: ExecutablePetriNet[S], actor: ActorRef)(implicit actorSystem: ActorSystem, materializer: Materializer) {
 
-  import PetriNetInstanceApi._
-  import actorSystem.dispatcher
-
   /**
    * Fires a transition and confirms (waits) for the result of that transition firing.
    */
-  def askAndConfirmFirst(msg: Any)(implicit timeout: Timeout): Future[Xor[UnexpectedMessage, InstanceState]] = {
-    actor.ask(msg).map {
-      case e: TransitionFired ⇒ Xor.Right(e.result)
-      case msg @ _            ⇒ Xor.Left(UnexpectedMessage(s"Received unexepected message: $msg"))
-    }
-  }
-
-  def askAndConfirmFirstSync(msg: Any)(implicit timeout: Timeout): Xor[UnexpectedMessage, InstanceState] = {
-    Await.result(askAndConfirmFirst(topology, msg), timeout.duration)
-  }
-
-  /**
-   * Fires a transition and confirms (waits) for all responses of subsequent automated transitions.
-   */
-  def askAndConfirmAll(msg: Any, waitForRetries: Boolean = false)(implicit timeout: Timeout): Future[Xor[ErrorResponse, InstanceState]] = {
-
-    val futureMessages: Future[Seq[TransitionResponse]] = askAndCollectAll(msg, waitForRetries).runWith(Sink.seq)
-
-    futureMessages.map {
-      _.lastOption match {
-        case Some(e: TransitionFired) ⇒ Xor.Right(e.result)
-        case Some(msg)                ⇒ Xor.Left(UnexpectedMessage(s"Received unexpected message: $msg"))
-        case None                     ⇒ Xor.Left(UnknownProcessId)
-      }
-    }
-  }
+  def askAndConfirmFirst[S](msg: Any)(implicit timeout: Timeout): Future[TransitionResponse] = actor.ask(msg).mapTo[TransitionResponse]
 
   /**
    * Synchronously collects all messages in response to a message sent to a PetriNet instance.
@@ -132,12 +89,11 @@ class PetriNetInstanceApi[S](topology: ExecutablePetriNet[S], actor: ActorRef)(i
   /**
    * Returns a Source of all the messages from a petri net actor in response to a message.
    *
-   * If the instance is 'uninitialized' returns an empty source.
    */
-  def askAndCollectAll(msg: Any, waitForRetries: Boolean = false): Source[TransitionResponse, NotUsed] = {
-    askSource(actor, msg, waitForRetries).map {
-      case e: TransitionResponse ⇒ Xor.Right(e)
-      case msg @ _               ⇒ Xor.Left(s"Received unexpected message: $msg")
-    }.takeWhile(_.isRight).map(_.asInstanceOf[Xor.Right[TransitionResponse]].b)
-  }
+  def askAndCollectAll(msg: Any, waitForRetries: Boolean = false): Source[TransitionResponse, NotUsed] =
+    Source.queue[TransitionResponse](100, OverflowStrategy.fail).mapMaterializedValue { queue ⇒
+      val sender = actorSystem.actorOf(Props(new QueuePushingActor(queue, waitForRetries)))
+      actor.tell(msg, sender)
+      NotUsed.getInstance()
+    }
 }

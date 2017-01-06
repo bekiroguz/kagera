@@ -40,7 +40,7 @@ class PetriNetInstanceSpec extends AkkaTestBase {
       expectMsg(Initialized(initialMarking, initialState))
     }
 
-    "Before being intialized respond with an IllegalCommand message and terminate on receiving a GetState command" in new TestSequenceNet {
+    "Before being intialized respond with an Unitialized message and terminate on receiving a GetState command" in new TestSequenceNet {
 
       override val sequence = Seq(
         transition()(_ ⇒ Added(1)),
@@ -51,7 +51,7 @@ class PetriNetInstanceSpec extends AkkaTestBase {
 
       watch(actor)
       actor ! GetState
-      expectMsgClass(classOf[IllegalCommand])
+      expectMsgClass(classOf[Uninitialized])
       expectMsgClass(classOf[Terminated])
     }
 
