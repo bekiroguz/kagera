@@ -66,7 +66,6 @@ class PetriNetInstance[S](
 
   def uninitialized: Receive = {
     case msg @ Initialize(marking, state) ⇒
-      log.debug(s"Received message: {}", msg)
       val uninitialized = Instance.uninitialized[S](topology)
       val event = InitializedEvent(marking, state)
       persistEvent(uninitialized, event) {
@@ -85,7 +84,6 @@ class PetriNetInstance[S](
       context.stop(context.self)
 
     case GetState ⇒
-      log.debug(s"Received message: GetState")
       sender() ! InstanceState(instance)
 
     case e @ TransitionFiredEvent(jobId, transitionId, timeStarted, timeCompleted, consumed, produced, output) ⇒
@@ -146,7 +144,7 @@ class PetriNetInstance[S](
             "transitionId" -> transition.id,
             "transitionLabel" -> transition.label)
 
-          log.warning(s"Scheduling a retry of transition '$transition' in $delay milliseconds")
+          logWithMDC(Logging.WarningLevel, s"Scheduling a retry of transition '$transition' in $delay milliseconds", mdc)
           val originalSender = sender()
           system.scheduler.scheduleOnce(delay milliseconds) { executeJob(updatedInstance.jobs(jobId), originalSender) }
           updateAndRespond(applyEvent(instance)(e))
@@ -172,7 +170,6 @@ class PetriNetInstance[S](
             "rejectReason" -> reason)
 
           logWithMDC(Logging.WarningLevel, s"Not Firing Transition '$transition' because: $reason", mdc)
-          log.warning(reason)
           sender() ! TransitionNotEnabled(transitionId, reason)
       }
     case msg: Initialize ⇒
@@ -207,7 +204,6 @@ class PetriNetInstance[S](
     )
 
     logWithMDC(Logging.DebugLevel, s"Firing transition ${job.transition}", mdc)
-
     runJobAsync(job, executor).unsafeRunAsyncFuture().pipeTo(context.self)(originalSender)
   }
 
