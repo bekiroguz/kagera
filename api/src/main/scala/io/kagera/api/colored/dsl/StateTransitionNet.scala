@@ -20,5 +20,5 @@ trait StateTransitionNet[S, E] {
       override def produceEvent(consume: Marking, state: S, input: Unit): Task[E] = Task.delay { (fn(state)) }
     }
 
-  def createPetriNet(arcs: Arc*) = process[S](arcs: _*)
+  def createPetriNet(arcs: Arc*) = petriNet[S](arcs: _*)
 }

@@ -33,6 +33,6 @@ trait SequenceNet[S, E] {
     val places = (1 to (nrOfSteps + 1)).map(i ⇒ Place[Unit](id = i))
     val tpedges = transitions.zip(places.tail).map { case (t, p) ⇒ arc(t, p, 1) }
     val ptedges = places.zip(transitions).map { case (p, t) ⇒ arc(p, t, 1) }
-    process[S]((tpedges ++ ptedges): _*)
+    petriNet[S]((tpedges ++ ptedges): _*)
   }
 }
