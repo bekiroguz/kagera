@@ -40,7 +40,7 @@ class QuerySpec extends TestKit(ActorSystem("QuerySpec", AkkaTestBase.defaultTes
       val t1 = nullTransition[Unit](id = 1, automated = true)
       val t2 = nullTransition[Unit](id = 2, automated = true)
 
-      val petriNet = petriNet(p1 ~> t1, t1 ~> p2, p2 ~> t2, t2 ~> p3)
+      val petriNet = createPetriNet(p1 ~> t1, t1 ~> p2, p2 ~> t2, t2 ~> p3)
       val processId = java.util.UUID.randomUUID().toString
       val instance = PetriNetInstanceSpec.createPetriNetActor(petriNet, processId)
 

@@ -13,7 +13,7 @@ object Generators {
       val tpedges = transitions.zip(places).map { case (t, p) ⇒ arc(t, p, 1) }
       val ptedges = places.zip(transitions.tail).map { case (p, t) ⇒ arc(p, t, 1) }
 
-      petriNet[Unit]((tpedges ++ ptedges): _*)
+      createPetriNet[Unit]((tpedges ++ ptedges): _*)
     }
   }
 }

@@ -56,7 +56,7 @@ package object dsl {
   def nullTransition[S](id: Long, label: Option[String] = None, automated: Boolean = false): Transition[Unit, Unit, S] =
     constantTransition[Unit, Unit, S](id, label, automated, ())
 
-  def petriNet[S](params: Arc*): ExecutablePetriNet[S] = {
+  def createPetriNet[S](params: Arc*): ExecutablePetriNet[S] = {
     val petriNet = new ScalaGraphPetriNet(Graph(params: _*)) with ColoredTokenGame
 
     requireUniqueElements(petriNet.places.toSeq.map(_.id), "Place identifier")
