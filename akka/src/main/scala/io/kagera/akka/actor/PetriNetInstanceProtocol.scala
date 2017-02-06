@@ -158,8 +158,9 @@ object PetriNetInstanceProtocol {
   }
 
   object InstanceState {
+    // Note: extra .map(identity) is a needed to workaround the scala Map serialization bug: https://issues.scala-lang.org/browse/SI-7005
     def apply(instance: io.kagera.execution.Instance[_]): InstanceState =
-      InstanceState(instance.sequenceNr, instance.marking, instance.state, instance.jobs.mapValues(JobState(_)))
+      InstanceState(instance.sequenceNr, instance.marking, instance.state, instance.jobs.mapValues(JobState(_)).map(identity))
   }
 
 }

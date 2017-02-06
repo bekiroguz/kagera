@@ -55,7 +55,8 @@ package object colored {
    */
   implicit class MarkingAdditions(marking: Marking) {
 
-    def multiplicities: MultiSet[Place[_]] = marking.data.mapValues(_.multisetSize)
+    // Note: extra .map(identity) is a needed to workaround the scala Map serialization bug: https://issues.scala-lang.org/browse/SI-7005
+    def multiplicities: MultiSet[Place[_]] = marking.data.mapValues(_.multisetSize).map(identity)
 
     def add[C](p: Place[C], value: C, count: Int = 1): Marking = {
       val newTokens = marking.getOrElse(p, MultiSet.empty).multisetIncrement(value, count)
