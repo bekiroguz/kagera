@@ -11,7 +11,7 @@ class AsyncTransitionExecutor[State](topology: ColoredPetriNet)(implicit strateg
   def transitionFunction[Input, Output](t: Transition[Input, Output, State]) =
     cachedTransitionFunctions(t).asInstanceOf[TransitionFunction[Input, Output, State]]
 
-  def fireTransition[Input, Output](t: Transition[Input, Output, State]): TransitionFunction[Input, Output, State] = {
+  override def apply[Input, Output](t: Transition[Input, Output, State]): TransitionFunction[Input, Output, State] = {
     (consume, state, input) ⇒
 
       def handleFailure: PartialFunction[Throwable, Task[(Marking, Output)]] = {

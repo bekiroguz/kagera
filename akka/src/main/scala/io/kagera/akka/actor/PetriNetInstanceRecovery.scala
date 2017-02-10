@@ -17,8 +17,6 @@ trait PetriNetInstanceRecovery[S] {
 
   def onRecoveryCompleted(state: Instance[S])
 
-  def applyEvent(i: Instance[S])(e: Event): Instance[S] = EventSourcing.applyEvent(e).runS(i).value
-
   def persistEvent[T, E <: Event](instance: Instance[S], e: E)(fn: E => T): Unit = {
     val serializedEvent = serializer.serializeEvent(e)(instance)
     persist(serializedEvent) { persisted => fn.apply(e) }
@@ -28,7 +26,7 @@ trait PetriNetInstanceRecovery[S] {
 
   private def applyToRecoveringState(e: AnyRef) = {
     val deserializedEvent = serializer.deserializeEvent(e)(recoveringState)
-    recoveringState = applyEvent(recoveringState)(deserializedEvent)
+    recoveringState = EventSourcing.apply(recoveringState)(deserializedEvent)
   }
 
   override def receiveRecover: Receive = {

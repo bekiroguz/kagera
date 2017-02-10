@@ -10,14 +10,17 @@ object EventSourcing {
 
   sealed trait Event
 
-  sealed trait TransitionEvent extends Event
+  sealed trait TransitionEvent extends Event {
+    val jobId: Long
+    val transitionId: Long
+  }
 
   /**
    * An event describing the fact that a transition has fired in the petri net process.
    */
   case class TransitionFiredEvent(
-    jobId: Long,
-    transitionId: Long,
+    override val jobId: Long,
+    override val transitionId: Long,
     timeStarted: Long,
     timeCompleted: Long,
     consumed: Marking,
@@ -28,8 +31,8 @@ object EventSourcing {
    * An event describing the fact that a transition failed to fire.
    */
   case class TransitionFailedEvent(
-    jobId: Long,
-    transitionId: Long,
+    override val jobId: Long,
+    override val transitionId: Long,
     timeStarted: Long,
     timeFailed: Long,
     consume: Marking,
@@ -44,7 +47,9 @@ object EventSourcing {
     marking: Marking,
     state: Any) extends Event
 
-  def applyEvent[S](e: Event): State[Instance[S], Unit] = State.modify { instance ⇒
+  def applyEvent[S](e: Event): State[Instance[S], Unit] = State.modify { instance ⇒ apply[S](instance)(e) }
+
+  def apply[S]: Instance[S] ⇒ Event ⇒ Instance[S] = instance ⇒ e ⇒ {
     e match {
       case InitializedEvent(initialMarking, initialState) ⇒
         Instance[S](instance.process, 1, initialMarking, initialState.asInstanceOf[S], Map.empty)

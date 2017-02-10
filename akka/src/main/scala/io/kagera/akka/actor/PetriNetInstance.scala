@@ -69,7 +69,7 @@ class PetriNetInstance[S](
       val uninitialized = Instance.uninitialized[S](topology)
       val event = InitializedEvent(marking, state)
       persistEvent(uninitialized, event) {
-        (applyEvent(uninitialized) _)
+        EventSourcing.apply(uninitialized)
           .andThen(step)
           .andThen { _ ⇒ sender() ! Initialized(marking, state) }
       }
@@ -86,7 +86,7 @@ class PetriNetInstance[S](
     case GetState ⇒
       sender() ! InstanceState(instance)
 
-    case e @ TransitionFiredEvent(jobId, transitionId, timeStarted, timeCompleted, consumed, produced, output) ⇒
+    case event @ TransitionFiredEvent(jobId, transitionId, timeStarted, timeCompleted, consumed, produced, output) ⇒
 
       val transition = topology.transitions.getById(transitionId)
       val mdc = Map(
@@ -102,18 +102,18 @@ class PetriNetInstance[S](
 
       logWithMDC(Logging.DebugLevel, s"Transition '$transition' successfully fired", mdc)
 
-      persistEvent(instance, e)(
-        (applyEvent(instance) _)
+      persistEvent(instance, event)(
+        EventSourcing.apply(instance)
           .andThen(step)
           .andThen {
             case (updatedInstance, jobs) ⇒
-              sender() ! TransitionFired(jobId, transitionId, e.consumed, e.produced, InstanceState(updatedInstance), jobs.map(JobState(_)))
+              sender() ! TransitionFired(jobId, transitionId, event.consumed, event.produced, InstanceState(updatedInstance), jobs.map(JobState(_)))
               updatedInstance
           }
 
       )
 
-    case e @ TransitionFailedEvent(jobId, transitionId, timeStarted, timeFailed, consume, input, reason, strategy) ⇒
+    case event @ TransitionFailedEvent(jobId, transitionId, timeStarted, timeFailed, consume, input, reason, strategy) ⇒
 
       val transition = topology.transitions.getById(transitionId)
       val mdc = Map(
@@ -128,8 +128,6 @@ class PetriNetInstance[S](
       )
 
       logWithMDC(Logging.WarningLevel, s"Transition '$transition' failed with: $reason", mdc)
-
-      val updatedInstance = applyEvent(instance)(e)
 
       def updateAndRespond(instance: Instance[S]) = {
         sender() ! TransitionFailed(jobId, transitionId, consume, input, reason, strategy)
@@ -146,11 +144,12 @@ class PetriNetInstance[S](
 
           logWithMDC(Logging.WarningLevel, s"Scheduling a retry of transition '$transition' in $delay milliseconds", mdc)
           val originalSender = sender()
+          val updatedInstance = EventSourcing.apply(instance)(event)
           system.scheduler.scheduleOnce(delay milliseconds) { executeJob(updatedInstance.jobs(jobId), originalSender) }
-          updateAndRespond(applyEvent(instance)(e))
+          updateAndRespond(EventSourcing.apply(instance)(event))
         case _ ⇒
-          persistEvent(instance, e)(
-            (applyEvent(instance) _).andThen(updateAndRespond _))
+          persistEvent(instance, event)(
+            EventSourcing.apply(instance).andThen(updateAndRespond _))
       }
 
     case msg @ FireTransition(transitionId, input, correlationId) ⇒
@@ -178,7 +177,7 @@ class PetriNetInstance[S](
 
   // TODO remove side effecting here
   def step(instance: Instance[S]): (Instance[S], Set[Job[S, _]]) = {
-    fireAllEnabledTransitions.run(instance).value match {
+    allEnabledJobs.run(instance).value match {
       case (updatedInstance, jobs) ⇒
 
         if (jobs.isEmpty && updatedInstance.activeJobs.isEmpty)
@@ -204,7 +203,7 @@ class PetriNetInstance[S](
     )
 
     logWithMDC(Logging.DebugLevel, s"Firing transition ${job.transition}", mdc)
-    runJobAsync(job, executor).unsafeRunAsyncFuture().pipeTo(context.self)(originalSender)
+    runJobAsync(executor)(job).unsafeRunAsyncFuture().pipeTo(context.self)(originalSender)
   }
 
   override def onRecoveryCompleted(instance: Instance[S]) = step(instance)

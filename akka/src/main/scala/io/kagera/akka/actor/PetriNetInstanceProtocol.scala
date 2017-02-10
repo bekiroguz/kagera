@@ -162,5 +162,4 @@ object PetriNetInstanceProtocol {
     def apply(instance: io.kagera.execution.Instance[_]): InstanceState =
       InstanceState(instance.sequenceNr, instance.marking, instance.state, instance.jobs.mapValues(JobState(_)).map(identity))
   }
-
 }

@@ -41,7 +41,7 @@ package object execution {
   /**
    * Finds the (optional) first transition that is automated & enabled
    */
-  def fireFirstEnabled[S]: State[Instance[S], Option[Job[S, _]]] = State { instance ⇒
+  def firstEnabledJob[S]: State[Instance[S], Option[Job[S, _]]] = State { instance ⇒
     instance.process.enabledParameters(instance.availableMarking).find {
       case (t, markings) ⇒ t.isAutomated && !instance.isBlockedReason(t.id).isDefined
     }.map {
@@ -51,30 +51,44 @@ package object execution {
     }.getOrElse((instance, None))
   }
 
-  def fireTransitionById[S](id: Long, input: Any): State[Instance[S], Either[String, Job[S, Any]]] =
+  /**
+   * Creates a Job for a transition.
+   */
+  def fireTransitionById[S](transitionId: Long, input: Any): State[Instance[S], Either[String, Job[S, Any]]] =
     State.inspect[Instance[S], Option[Transition[Any, Any, S]]] { instance ⇒
-      instance.process.transitions.findById(id).map(_.asInstanceOf[Transition[Any, Any, S]])
+      instance.process.transitions.findById(transitionId).map(_.asInstanceOf[Transition[Any, Any, S]])
     }.flatMap {
-      case None    ⇒ State.pure(Left(s"No transition exists with id $id"))
+      case None    ⇒ State.pure(Left(s"No transition exists with id $transitionId"))
       case Some(t) ⇒ fireTransition(t, input)
     }
 
   /**
    * Finds all automated enabled transitions.
    */
-  def fireAllEnabledTransitions[S]: State[Instance[S], Set[Job[S, _]]] =
-    fireFirstEnabled[S].flatMap {
+  def allEnabledJobs[S]: State[Instance[S], Set[Job[S, _]]] =
+    firstEnabledJob[S].flatMap {
       case None      ⇒ State.pure(Set.empty)
-      case Some(job) ⇒ fireAllEnabledTransitions[S].map(_ + job)
+      case Some(job) ⇒ allEnabledJobs[S].map(_ + job)
     }
+
+  def applyJobs[S](executor: TransitionExecutor[S, Transition])(jobs: Set[Job[S, _]]): State[Instance[S], Unit] = {
+    State.modify[Instance[S]] { instance ⇒
+      val events = Task.traverse(jobs.toSeq)(job ⇒ runJobAsync(executor)(job)).unsafeRun()
+      events.foldLeft(instance) {
+        (s, e) ⇒
+          val appliedEvent = EventSourcing.apply(s)(e)
+          appliedEvent.copy(jobs = appliedEvent.jobs - e.jobId)
+      }
+    }
+  }
 
   /**
    * Executes a job returning a Task[TransitionEvent]
    */
-  def runJobAsync[S, E](job: Job[S, E], executor: TransitionExecutor[S, Transition]): Task[TransitionEvent] = {
+  def runJobAsync[S, E](executor: TransitionExecutor[S, Transition])(job: Job[S, E]): Task[TransitionEvent] = {
     val startTime = System.currentTimeMillis()
 
-    executor.fireTransition(job.transition)(job.consume, job.processState, job.input).map {
+    executor(job.transition)(job.consume, job.processState, job.input).map {
       case (produced, out) ⇒
         TransitionFiredEvent(job.id, job.transition.id, startTime, System.currentTimeMillis(), job.consume, produced, Some(out))
     }.handle {

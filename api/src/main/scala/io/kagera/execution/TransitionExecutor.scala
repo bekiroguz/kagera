@@ -5,12 +5,13 @@ import io.kagera.api.colored._
 trait TransitionExecutor[State, T[_, _, _]] {
 
   /**
-   * Given a transition returns an input output function
+   * Given a transition returns an TransitionFunction
    *
-   * @param t
-   * @tparam Input
-   * @tparam Output
+   * @param transition
+   *
+   * @tparam Input  The input type of the transition.
+   * @tparam Output The output type of the transition.
    * @return
    */
-  def fireTransition[Input, Output](t: T[Input, Output, State]): TransitionFunction[Input, Output, State]
+  def apply[Input, Output](transition: T[Input, Output, State]): TransitionFunction[Input, Output, State]
 }
