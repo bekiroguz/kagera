@@ -42,11 +42,6 @@ trait Transition[Input, Output, State] {
   val isAutomated: Boolean
 
   /**
-   * The maximum duration this transition may spend doing computation / io.
-   */
-  val maximumOperationTime: Duration
-
-  /**
    * Indicates a strategy to use when dealing with exceptions.
    *
    * @return

@@ -5,8 +5,6 @@ import io.kagera.api._
 import io.kagera.api.colored.transitions.{ AbstractTransition, IdentityTransition }
 import io.kagera.api.multiset._
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.{ ExecutionContext, Future }
 import scalax.collection.Graph
 import scalax.collection.edge.WLDiEdge
 
@@ -39,7 +37,7 @@ package object dsl {
   }
 
   def constantTransition[I, O, S](id: Long, label: Option[String] = None, automated: Boolean = false, constant: O) =
-    new AbstractTransition[I, O, S](id, label.getOrElse(s"t$id"), automated, Duration.Undefined) with IdentityTransition[I, O, S] {
+    new AbstractTransition[I, O, S](id, label.getOrElse(s"t$id"), automated) with IdentityTransition[I, O, S] {
 
       override val toString = label
 
