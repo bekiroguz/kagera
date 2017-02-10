@@ -114,6 +114,12 @@ package object colored {
     def toMarking: Marking = HMap[Place, MultiSet](i.toMap[Place[_], MultiSet[_]])
   }
 
+  implicit class MultiSetToMarking(m: MultiSet[Place[_]]) {
+    def toMarking: Marking = m.map { case (p, n) ⇒ p -> Map(() -> n) }.toMarking
+  }
+
+  implicit def toColoredMarking(m: MultiSet[Place[_]]): Marking = m.toMarking
+
   implicit class ColoredPetriNetAdditions(petriNet: ColoredPetriNet) {
     def getEdge(p: Place[_], t: Transition[_, _, _]): Option[PTEdge[Any]] = petriNet.innerGraph.findPTEdge(p, t).map(_.label.asInstanceOf[PTEdge[Any]])
   }
