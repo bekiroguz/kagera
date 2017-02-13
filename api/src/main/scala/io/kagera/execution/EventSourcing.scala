@@ -69,7 +69,7 @@ object EventSourcing {
           Job[S, Any](e.jobId, instance.state, transition, e.consume, e.input, None)
         }
         val failureCount = job.failureCount + 1
-        val updatedJob = job.copy(failure = Some(ExceptionState(e.transitionId, failureCount, e.failureReason, e.exceptionStrategy)))
+        val updatedJob = job.copy(failure = Some(ExceptionState(failureCount, e.failureReason, e.exceptionStrategy)))
         instance.copy(jobs = instance.jobs + (job.id -> updatedJob))
     }
   }

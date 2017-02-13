@@ -24,13 +24,11 @@ case class Instance[S](
 
   def activeJobs: Iterable[Job[S, _]] = jobs.values.filter(_.isActive)
 
-  def failedJobs: Iterable[ExceptionState] = jobs.values.map(_.failure).flatten
-
-  def isBlockedReason(transitionId: Long): Option[String] = failedJobs.map {
-    case ExceptionState(`transitionId`, _, reason, _) ⇒
+  def isBlockedReason(transitionId: Long): Option[String] = jobs.values.map {
+    case Job(_, _, t, _, _, Some(ExceptionState(_, reason, _))) if t.id == transitionId ⇒
       Some(s"Transition '${process.transitions.getById(transitionId)}' is blocked because it failed previously with: $reason")
-    case ExceptionState(tid, _, reason, ExceptionStrategy.Fatal) ⇒
-      Some(s"Transition '${process.transitions.getById(tid)}' caused a Fatal exception")
+    case Job(_, _, t, _, _, Some(ExceptionState(_, reason, ExceptionStrategy.Fatal))) ⇒
+      Some(s"Transition '$t' caused a Fatal exception")
     case _ ⇒ None
   }.find(_.isDefined).flatten
 

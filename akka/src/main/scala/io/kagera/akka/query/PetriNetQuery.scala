@@ -24,9 +24,9 @@ trait PetriNetQuery[S] {
 
     src.scan[(Instance[S], Event)]((Instance.uninitialized(topology), null.asInstanceOf[Event])) {
       case ((instance, prev), e) ⇒
-        val event = e.event.asInstanceOf[AnyRef]
-        val deserializedEvent = serializer.deserializeEvent(event)(instance)
-        val updatedInstance = applyEvent(deserializedEvent).runS(instance).value
+        val serializedEvent = e.event.asInstanceOf[AnyRef]
+        val deserializedEvent = serializer.deserializeEvent(serializedEvent)(instance)
+        val updatedInstance = EventSourcing.apply(instance)(deserializedEvent)
         (updatedInstance, deserializedEvent)
     }.drop(1)
   }

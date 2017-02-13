@@ -15,9 +15,9 @@ case class Job[S, E](
     failure: Option[ExceptionState] = None) {
 
   def isActive: Boolean = failure match {
-    case Some(ExceptionState(_, _, _, RetryWithDelay(_))) ⇒ true
-    case None                                             ⇒ true
-    case _                                                ⇒ false
+    case Some(ExceptionState(_, _, RetryWithDelay(_))) ⇒ true
+    case None                                          ⇒ true
+    case _                                             ⇒ false
   }
 
   def failureCount = failure.map(_.failureCount).getOrElse(0)
