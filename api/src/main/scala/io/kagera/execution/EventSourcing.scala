@@ -1,6 +1,5 @@
 package io.kagera.execution
 
-import cats.data.State
 import io.kagera.api._
 import io.kagera.api.colored._
 
@@ -46,8 +45,6 @@ object EventSourcing {
   case class InitializedEvent(
     marking: Marking,
     state: Any) extends Event
-
-  def applyEvent[S](e: Event): State[Instance[S], Unit] = State.modify { instance ⇒ apply[S](instance)(e) }
 
   def apply[S]: Instance[S] ⇒ Event ⇒ Instance[S] = instance ⇒ e ⇒ {
     e match {
