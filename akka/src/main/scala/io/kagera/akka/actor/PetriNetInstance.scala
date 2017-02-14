@@ -59,9 +59,12 @@ class PetriNetInstance[S](
   override def receiveCommand = uninitialized
 
   def logWithMDC(level: LogLevel, msg: String, mdc: Map[String, Any]) = {
-    log.setMDC(mdc.asJava)
-    log.log(level, msg)
-    log.clearMDC()
+    try {
+      log.setMDC(mdc.asJava)
+      log.log(level, msg)
+    } finally {
+      log.clearMDC()
+    }
   }
 
   def uninitialized: Receive = {
@@ -142,7 +145,7 @@ class PetriNetInstance[S](
             "transitionId" -> transition.id,
             "transitionLabel" -> transition.label)
 
-          logWithMDC(Logging.WarningLevel, s"Scheduling a retry of transition '$transition' in $delay milliseconds", mdc)
+          logWithMDC(Logging.WarningLevel, s"Scheduling a retry of transition '$transition' in ${Duration(delay, MILLISECONDS).toString()}", mdc)
           val originalSender = sender()
           val updatedInstance = EventSourcing.apply(instance)(event)
           system.scheduler.scheduleOnce(delay milliseconds) { executeJob(updatedInstance.jobs(jobId), originalSender) }
