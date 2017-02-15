@@ -68,6 +68,7 @@ object Build extends Build {
         scalaGraph,
         akkaInmemoryJournal % "test",
         akkaTestkit % "test",
+        akkaStreamTestKit % "test",
         scalatest   % "test")
     ))
 

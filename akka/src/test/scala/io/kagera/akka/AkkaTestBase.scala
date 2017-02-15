@@ -12,7 +12,7 @@ object AkkaTestBase {
       |
       |akka {
       |  loggers = ["akka.testkit.TestEventListener"]
-      |  test.timefactor = 3
+      |  test.timefactor = 4
       |  persistence {
       |    journal.plugin = "inmemory-journal"
       |    snapshot-store.plugin = "inmemory-snapshot-store"

@@ -3,6 +3,7 @@ package io.kagera.akka
 import akka.NotUsed
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
+import akka.stream.testkit.scaladsl.TestSink
 import akka.util.Timeout
 import io.kagera.akka.actor.PetriNetInstanceApi
 import io.kagera.akka.actor.PetriNetInstanceProtocol._
@@ -22,8 +23,6 @@ class PetriNetInstanceApiSpec extends AkkaTestBase {
 
     "Return a source of events resulting from a TransitionFired command" in new TestSequenceNet {
 
-      val waitTimeout = 2 seconds
-
       override val sequence = Seq(
         transition()(_ ⇒ Added(1)),
         transition(automated = true)(_ ⇒ Added(2)),
@@ -37,16 +36,11 @@ class PetriNetInstanceApiSpec extends AkkaTestBase {
 
       val api = new PetriNetInstanceApi(petriNet, actor)
       val source: Source[TransitionResponse, NotUsed] = api.askAndCollectAll(FireTransition(1, ()))
-      val responses = Await.result(source.runWith(Sink.seq[TransitionResponse]), waitTimeout)
+      source.map(_.transitionId).runWith(TestSink.probe).request(3).expectNext(1, 2, 3)
 
-      responses.size shouldBe 3
-
-      responses(0).transitionId shouldBe 1
-      responses(1).transitionId shouldBe 2
-      responses(2).transitionId shouldBe 3
     }
 
-    "Return an error response when one transition fails but a later one does not (parallel situtation)" in new StateTransitionNet[Unit, Unit] {
+    "Return an error response when one transition fails but a later one does not (parallel situation)" in new StateTransitionNet[Unit, Unit] {
       implicit val waitTimeout: FiniteDuration = 2 seconds
       implicit val akkaTimeout: akka.util.Timeout = waitTimeout
 
@@ -81,8 +75,6 @@ class PetriNetInstanceApiSpec extends AkkaTestBase {
 
     "Return an empty source when the petri net instance is 'uninitialized'" in new TestSequenceNet {
 
-      val waitTimeout = 2 seconds
-
       override val sequence = Seq(
         transition()(_ ⇒ Added(1))
       )
@@ -91,9 +83,8 @@ class PetriNetInstanceApiSpec extends AkkaTestBase {
       val api = new PetriNetInstanceApi(petriNet, actor)
       val source: Source[TransitionResponse, NotUsed] = api.askAndCollectAll(FireTransition(1, ()))
 
-      val responses = Await.result(source.runWith(Sink.seq[TransitionResponse]), waitTimeout)
+      source.runWith(TestSink.probe[TransitionResponse]).expectSubscriptionAndComplete()
 
-      responses.isEmpty shouldBe true
     }
   }
 }
