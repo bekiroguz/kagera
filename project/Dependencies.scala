@@ -14,6 +14,7 @@ object Dependencies {
   val akkaTestkit              = "com.typesafe.akka"               %% "akka-testkit"                        % akkaVersion
   val akkaSlf4j                = "com.typesafe.akka"               %% "akka-slf4j"                          % akkaVersion
   val akkaStream               = "com.typesafe.akka"               %% "akka-stream"                         % akkaVersion
+  val akkaStreamTestKit        = "com.typesafe.akka"               %% "akka-stream-testkit"                 % akkaVersion
   val akkaQuery                = "com.typesafe.akka"               %% "akka-persistence-query-experimental" % akkaVersion
   val akkaHttp                 = "com.typesafe.akka"               %% "akka-http-experimental"              % akkaHttpVersion
   val akkaInmemoryJournal      = "com.github.dnvriend"             %% "akka-persistence-inmemory"           % "1.3.14"

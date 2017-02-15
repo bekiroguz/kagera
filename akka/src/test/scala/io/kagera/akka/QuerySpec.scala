@@ -1,22 +1,23 @@
 package io.kagera.akka
 
+import java.util.UUID
+
 import akka.actor.ActorSystem
 import akka.persistence.query.PersistenceQuery
 import akka.persistence.query.scaladsl.{ AllPersistenceIdsQuery, CurrentEventsByPersistenceIdQuery, ReadJournal }
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Sink
+import akka.stream.testkit.scaladsl.TestSink
 import akka.testkit.{ ImplicitSender, TestKit }
 import io.kagera.akka.actor.PetriNetInstanceProtocol.{ Initialize, Initialized, TransitionFired }
 import io.kagera.akka.query.PetriNetQuery
 import io.kagera.api.colored.dsl._
 import io.kagera.api.colored.{ Marking, Place }
 import io.kagera.execution.EventSourcing.{ InitializedEvent, TransitionFiredEvent }
-import org.scalatest.Inside._
 import org.scalatest.Matchers._
 import org.scalatest.WordSpecLike
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.concurrent.{ Await, ExecutionContext }
 
 class QuerySpec extends TestKit(ActorSystem("QuerySpec", AkkaTestBase.defaultTestConfig))
     with WordSpecLike with ImplicitSender {
@@ -41,7 +42,7 @@ class QuerySpec extends TestKit(ActorSystem("QuerySpec", AkkaTestBase.defaultTes
       val t2 = nullTransition[Unit](id = 2, automated = true)
 
       val petriNet = createPetriNet(p1 ~> t1, t1 ~> p2, p2 ~> t2, t2 ~> p3)
-      val processId = java.util.UUID.randomUUID().toString
+      val processId = UUID.randomUUID().toString
       val instance = PetriNetInstanceSpec.createPetriNetActor(petriNet, processId)
 
       instance ! Initialize(Marking(p1 -> 1))
@@ -49,31 +50,22 @@ class QuerySpec extends TestKit(ActorSystem("QuerySpec", AkkaTestBase.defaultTes
       expectMsgPF(timeOut) { case TransitionFired(_, 1, _, _, _, _) ⇒ }
       expectMsgPF(timeOut) { case TransitionFired(_, 2, _, _, _, _) ⇒ }
 
-      // wait for all events to be available in the read journal
-      Thread.sleep(100)
+      eventsForInstance(processId, petriNet).map(_._2).runWith(TestSink.probe)
+        .request(3)
+        .expectNext(InitializedEvent(marking = Marking(p1 -> 1), state = ()))
+        .expectNextChainingPF {
+          case TransitionFiredEvent(_, transitionId, _, _, consumed, produced, _) ⇒ {
+            transitionId shouldBe t1.id
+            consumed shouldBe Marking(p1 -> 1)
+            produced shouldBe Marking(p2 -> 1)
+          }
+        }.expectNextChainingPF {
+          case TransitionFiredEvent(_, transitionId, _, _, consumed, produced, _) ⇒
+            transitionId shouldBe t2.id
+            consumed shouldBe Marking(p2 -> 1)
+            produced shouldBe Marking(p3 -> 1)
+        }
 
-      val futureEventList = eventsForInstance(processId, petriNet).map(_._2).runWith(Sink.seq)
-      val eventList = Await.result(futureEventList, 2 seconds).toList
-
-      eventList.size shouldBe 3
-
-      eventList(0) shouldBe InitializedEvent(
-        marking = Marking(p1 -> 1),
-        state = ())
-
-      inside(eventList(1)) {
-        case TransitionFiredEvent(_, transitionId, _, _, consumed, produced, _) ⇒
-          transitionId shouldBe t1.id
-          consumed shouldBe Marking(p1 -> 1)
-          produced shouldBe Marking(p2 -> 1)
-      }
-
-      inside(eventList(2)) {
-        case TransitionFiredEvent(_, transitionId, _, _, consumed, produced, _) ⇒
-          transitionId shouldBe t2.id
-          consumed shouldBe Marking(p2 -> 1)
-          produced shouldBe Marking(p3 -> 1)
-      }
     }
   }
 }
