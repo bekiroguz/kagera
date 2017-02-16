@@ -71,14 +71,14 @@ package object execution {
       case Some(job) ⇒ allEnabledJobs[S].map(_ + job)
     }
 
-  def applyJobs[S](executor: TransitionExecutor[S, Transition])(jobs: Set[Job[S, _]]): State[Instance[S], Unit] = {
-    State.modify[Instance[S]] { instance ⇒
+  def applyJobs[S](executor: TransitionExecutor[S, Transition])(jobs: Set[Job[S, _]]): State[Instance[S], List[TransitionEvent]] = {
+    State { (instance: Instance[S]) ⇒
       val events = Task.traverse(jobs.toSeq)(job ⇒ runJobAsync(executor)(job)).unsafeRun()
-      events.foldLeft(instance) {
-        (s, e) ⇒
-          val appliedEvent = EventSourcing.apply(s)(e)
-          appliedEvent.copy(jobs = appliedEvent.jobs - e.jobId)
+      val updated = events.foldLeft(instance) { (s, e) ⇒
+        val appliedEvent = EventSourcing.apply(s)(e)
+        appliedEvent.copy(jobs = appliedEvent.jobs - e.jobId)
       }
+      (updated, events.toList)
     }
   }
 

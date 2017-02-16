@@ -19,7 +19,7 @@ trait PetriNetInstanceRecovery[S] {
 
   def persistEvent[T, E <: Event](instance: Instance[S], e: E)(fn: E => T): Unit = {
     val serializedEvent = serializer.serializeEvent(e)(instance)
-    persist(serializedEvent) { persisted => fn.apply(e) }
+    persist(serializedEvent) { persisted => fn(e) }
   }
 
   private var recoveringState: Instance[S] = Instance.uninitialized[S](topology)

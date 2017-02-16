@@ -9,6 +9,9 @@ object Instance {
   def uninitialized[S](process: ExecutablePetriNet[S]): Instance[S] = Instance[S](process, 0, Marking.empty, null.asInstanceOf[S], Map.empty)
 }
 
+/**
+ * Keeps the state of a 'running' petri net instance.
+ */
 case class Instance[S](
     process: ExecutablePetriNet[S],
     sequenceNr: Long,
@@ -16,10 +19,14 @@ case class Instance[S](
     state: S,
     jobs: Map[Long, Job[S, _]]) {
 
-  // The marking that is already used by running jobs
+  /**
+   * The marking that is already used by running jobs
+   */
   lazy val reservedMarking: Marking = jobs.map { case (id, job) ⇒ job.consume }.reduceOption(_ |+| _).getOrElse(Marking.empty)
 
-  // The marking that is available for new jobs
+  /**
+   * The marking that is available for new jobs
+   */
   lazy val availableMarking: Marking = marking |-| reservedMarking
 
   def activeJobs: Iterable[Job[S, _]] = jobs.values.filter(_.isActive)
